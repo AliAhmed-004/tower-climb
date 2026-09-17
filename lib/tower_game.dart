@@ -60,6 +60,9 @@ class TowerGame extends FlameGame
   Future<void> onLoad() async {
     camera.viewfinder.anchor = Anchor.topLeft;
 
+    // Preload platform spritesheet before any platforms are spawned
+    await GamePlatform.preload();
+
     // Background
     world.add(GameBackground());
 
@@ -128,6 +131,7 @@ class TowerGame extends FlameGame
       position: Vector2(x, y),
       width: width,
       isGround: isGround,
+      rng: _rng,
     );
     world.add(p);
     platforms.add(p);
