@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:icy_tower/tower_game.dart';
+import 'package:tower_climb/tower_game.dart';
 import 'main_menu_screen.dart';
 
 class GameScreen extends StatefulWidget {

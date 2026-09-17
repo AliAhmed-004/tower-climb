@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
-import 'package:icy_tower/tower_game.dart';
+import 'package:tower_climb/tower_game.dart';
 import 'platform.dart';
 
 class Player extends PositionComponent

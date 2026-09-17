@@ -4,10 +4,10 @@ import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
-import 'package:icy_tower/background.dart';
-import 'package:icy_tower/kill_floor.dart';
-import 'package:icy_tower/platform.dart';
-import 'package:icy_tower/player.dart';
+import 'package:tower_climb/background.dart';
+import 'package:tower_climb/kill_floor.dart';
+import 'package:tower_climb/platform.dart';
+import 'package:tower_climb/player.dart';
 
 class TowerGame extends FlameGame
     with HasCollisionDetection, TapDetector, ChangeNotifier {
