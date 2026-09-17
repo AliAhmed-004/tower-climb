@@ -104,8 +104,8 @@ class TowerGame extends FlameGame
   void _spawnNextPlatform({bool forced = false}) {
     final double difficulty = min(_platformCount / 30.0, 1.0);
 
-    final double minWidth = _lerp(size.x * 0.55, size.x * 0.22, difficulty);
-    final double maxWidth = _lerp(size.x * 0.75, size.x * 0.42, difficulty);
+    final double minWidth = _lerp(size.x * 0.28, size.x * 0.12, difficulty);
+    final double maxWidth = _lerp(size.x * 0.45, size.x * 0.25, difficulty);
     final double platformWidth =
         minWidth + _rng.nextDouble() * (maxWidth - minWidth);
 

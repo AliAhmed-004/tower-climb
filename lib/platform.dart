@@ -33,8 +33,8 @@ class GamePlatform extends PositionComponent {
   final bool isGround;
   final int _variantIndex;
 
-  // Visual height comes from the sprite row; collision uses the top portion only
-  static const double collisionHeight = 14.0;
+  // Collision height matches render height so landing feels accurate
+  static const double collisionHeight = 20.0;
 
   GamePlatform({
     required Vector2 position,
@@ -60,30 +60,49 @@ class GamePlatform extends PositionComponent {
     );
   }
 
+  // How tall the platform renders on screen (logical pixels).
+  // Kept fixed regardless of platform width so it never looks magnified.
+  static const double renderHeight = 20.0;
+
   @override
   void render(Canvas canvas) {
     super.render(canvas);
 
     final ui.Image? img = _sheetImage;
-    if (img == null) return; // fallback: invisible until loaded
+    if (img == null) return;
 
     final _TileRow row = isGround ? _groundRow : _variants[_variantIndex];
 
-    // Source rect — full width of the sheet, the specific row
-    final Rect src = Rect.fromLTWH(
-      0,
-      row.y.toDouble(),
-      256,
-      row.h.toDouble(),
-    );
+    // Tile the sprite across the platform width at a fixed render height.
+    // This means a wide platform shows multiple repetitions of the texture
+    // rather than one blurry stretched copy — much crisper at any width.
+    const double srcW = 256.0;
+    final double srcH = row.h.toDouble();
 
-    // Destination rect — stretch to fit platform width, keep sprite height
-    // We draw slightly above y=0 so the sprite's visual body aligns with
-    // the collision box top, and the sprite hangs down below.
-    final double spriteH = row.h * (size.x / 256); // scale proportionally
-    final Rect dst = Rect.fromLTWH(0, 0, size.x, spriteH);
+    // How wide one tile is on screen, scaled so height == renderHeight
+    final double tileScreenW = srcW * (renderHeight / srcH);
 
-    canvas.drawImageRect(img, src, dst, Paint());
+    final Paint paint = Paint();
+    double drawnX = 0.0;
+
+    canvas.save();
+    // Clip so the last tile doesn't overdraw past the platform edge
+    canvas.clipRect(Rect.fromLTWH(0, 0, size.x, renderHeight));
+
+    while (drawnX < size.x) {
+      // For the last tile, only draw as much of the source as needed
+      final double remaining = size.x - drawnX;
+      final double drawW = remaining.clamp(0, tileScreenW);
+      final double srcDrawW = srcW * (drawW / tileScreenW);
+
+      final Rect src = Rect.fromLTWH(0, row.y.toDouble(), srcDrawW, srcH);
+      final Rect dst = Rect.fromLTWH(drawnX, 0, drawW, renderHeight);
+
+      canvas.drawImageRect(img, src, dst, paint);
+      drawnX += tileScreenW;
+    }
+
+    canvas.restore();
   }
 }
 
