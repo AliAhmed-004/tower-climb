@@ -36,9 +36,22 @@ class TowerGame extends FlameGame
   // Camera tracking
   double _cameraTargetY = 0;
 
+  // Auto-scroll: tracks the autonomous upward creep of the camera
+  double _autoScrollY =
+      0; // world-Y the auto-scroll has reached (most negative = highest)
+
   // ── Constants ──────────────────────────────────────────────────────────────
   static const double platformSpacing = 110.0;
-  static const double killFloorLag = 420.0; // px below top of viewport
+
+  // How far below the BOTTOM of the viewport the kill floor sits.
+  // 3 floors of grace = player can fall back ~3 platforms before dying.
+  static const double killFloorGrace = platformSpacing * 3.0;
+
+  // Auto-scroll speed range (world units/sec, negative = upward).
+  // At floor 0 the camera barely moves; by floor 50 it's aggressive.
+  static const double _scrollSpeedMin = 12.0; // early game — barely noticeable
+  static const double _scrollSpeedMax = 110.0; // late game — proper chase
+  static const double _scrollRampFloors = 60.0; // floors over which speed ramps
 
   @override
   Color backgroundColor() => const Color(0xFF0A0A1A);
@@ -66,6 +79,7 @@ class TowerGame extends FlameGame
     world.add(killFloor);
 
     _cameraTargetY = 0;
+    _autoScrollY = 0;
   }
 
   void _spawnStartingPlatforms() {
@@ -129,19 +143,35 @@ class TowerGame extends FlameGame
     player.moveLeft = _leftDown;
     player.moveRight = _rightDown;
 
-    // Smooth camera follow (chase player upward, never scroll down)
-    final double desiredCamY = player.position.y - size.y * 0.4;
-    if (desiredCamY < _cameraTargetY) {
-      _cameraTargetY = desiredCamY;
-    }
-    // Smooth lerp toward target
+    // ── Auto-scroll speed (scales with floor, capped at max) ─────────────────
+    final double scrollT = (currentFloor / _scrollRampFloors).clamp(0.0, 1.0);
+    final double scrollSpeed = _lerp(_scrollSpeedMin, _scrollSpeedMax, scrollT);
+
+    // Advance the autonomous scroll upward (negative Y direction)
+    _autoScrollY -= scrollSpeed * dt;
+
+    // Player-follow target: keep player ~40% from top
+    final double playerFollowY = player.position.y - size.y * 0.4;
+
+    // Camera target = whichever is higher (more negative): player-follow OR auto-scroll.
+    // This means: camera chases the player when they're climbing fast,
+    // but keeps creeping up on its own when the player stalls.
+    _cameraTargetY = min(playerFollowY, _autoScrollY);
+
+    // Smooth lerp toward target — snappy enough to feel responsive
     final double currentCamY = camera.viewfinder.position.y;
     final double newCamY =
         currentCamY + (_cameraTargetY - currentCamY) * 8 * dt;
     camera.viewfinder.position = Vector2(0, newCamY);
 
-    // Kill floor follows camera
-    killFloor.position.y = camera.viewfinder.position.y + killFloorLag;
+    // Keep auto-scroll in sync if camera was already ahead (e.g. player jumped high)
+    if (camera.viewfinder.position.y < _autoScrollY) {
+      _autoScrollY = camera.viewfinder.position.y;
+    }
+
+    // Kill floor: a few floors below the BOTTOM edge of the viewport (invisible)
+    killFloor.position.y =
+        camera.viewfinder.position.y + size.y + killFloorGrace;
 
     // Despawn platforms that are too far below
     platforms.removeWhere((p) {
@@ -164,8 +194,8 @@ class TowerGame extends FlameGame
       notifyListeners();
     }
 
-    // Player fell below kill floor
-    if (player.position.y > killFloor.position.y + 50) {
+    // Player fell below kill floor (which is already off the bottom of the screen)
+    if (player.position.y > killFloor.position.y) {
       _triggerGameOver();
     }
   }
