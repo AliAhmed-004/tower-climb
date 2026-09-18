@@ -1,17 +1,18 @@
-import 'package:flame/game.dart';
+import 'dart:ui';
+
 import 'package:flame/components.dart';
-import 'package:flutter/material.dart';
+import 'package:flame/flame.dart';
+import 'package:flame/game.dart';
+import 'dart:ui' as ui;
 
-/// A simple infinite tiling background that scrolls with the world.
 class GameBackground extends Component with HasGameRef<FlameGame> {
-  static const double _tileH = 120.0;
+  static ui.Image? _bgImage;
+  static ui.Image? _wallImage;
 
-  // Pre-defined star positions per tile row (x fraction, size)
-  static const List<(double, double)> _starPattern = [
-    (0.08, 1.2), (0.23, 0.8), (0.51, 1.5), (0.74, 1.0), (0.91, 0.7),
-    (0.14, 0.9), (0.38, 1.3), (0.62, 0.6), (0.85, 1.1),
-    (0.05, 0.8), (0.30, 1.0), (0.55, 1.4), (0.78, 0.9), (0.96, 1.2),
-  ];
+  static Future<void> preload() async {
+    _bgImage = await Flame.images.load('background.png');
+    _wallImage = await Flame.images.load('rocky_wall.png');
+  }
 
   @override
   void render(Canvas canvas) {
@@ -19,46 +20,68 @@ class GameBackground extends Component with HasGameRef<FlameGame> {
     final double w = gameRef.size.x;
     final double h = gameRef.size.y;
 
-    // Fill base
-    canvas.drawRect(
-      Rect.fromLTWH(0, camY, w, h),
-      Paint()..color = const Color(0xFF0A0A1A),
-    );
+    // ── Background ─────────────────────────────────────────────────────────
+    final ui.Image? bg = _bgImage;
+    if (bg != null) {
+      // Tile the square background vertically as the player climbs.
+      // Slow parallax: bg scrolls at 30% of camera speed.
+      final double parallaxY = camY * 0.30;
+      final double tileH = w; // square tile scaled to screen width
 
-    // Tile stars across visible area
-    final int startTile = (camY / _tileH).floor() - 1;
-    final int endTile = ((camY + h) / _tileH).ceil() + 1;
+      final int startTile = (parallaxY / tileH).floor() - 1;
+      final int endTile = ((parallaxY + h) / tileH).ceil() + 1;
 
-    final starPaint = Paint()..color = Colors.white.withOpacity(0.45);
-    for (int t = startTile; t <= endTile; t++) {
-      final double tileY = t * _tileH;
-      // Use tile index to vary which stars are "bright"
-      final int offset = t.abs() % _starPattern.length;
-      for (int i = 0; i < _starPattern.length; i++) {
-        final (double xf, double sz) = _starPattern[(i + offset) % _starPattern.length];
-        final bool bright = (i + t) % 7 == 0;
-        starPaint.color = bright
-            ? Colors.white.withOpacity(0.7)
-            : Colors.white.withOpacity(0.25);
-        canvas.drawCircle(
-          Offset(xf * w, tileY + (i * _tileH / _starPattern.length)),
-          sz,
-          starPaint,
-        );
+      final Paint bgPaint = Paint()..filterQuality = ui.FilterQuality.low;
+      for (int t = startTile; t <= endTile; t++) {
+        final Rect src =
+            Rect.fromLTWH(0, 0, bg.width.toDouble(), bg.height.toDouble());
+        final Rect dst =
+            Rect.fromLTWH(0, camY + (t * tileH - parallaxY), w, tileH);
+        canvas.drawImageRect(bg, src, dst, bgPaint);
       }
-    }
-
-    // Subtle height-based gradient tint — gets more purple as you go higher
-    // (higher = more negative Y in world space)
-    final double heightFraction =
-        ((-camY) / 5000.0).clamp(0.0, 1.0);
-    if (heightFraction > 0) {
+    } else {
+      // Fallback solid colour
       canvas.drawRect(
         Rect.fromLTWH(0, camY, w, h),
-        Paint()
-          ..color =
-              const Color(0xFF220044).withOpacity(heightFraction * 0.35),
+        Paint()..color = const ui.Color(0xFF0D1B0F),
       );
+    }
+
+    // ── Side walls ─────────────────────────────────────────────────────────
+    final ui.Image? wall = _wallImage;
+    if (wall != null) {
+      // Wall scrolls at 60% of camera — closer than bg, further than platforms
+      final double wallParallaxY = camY * 0.60;
+      final double wallW = w * 0.18; // ~18% of screen width each side
+      final double wallSrcW = wall.width.toDouble();
+      final double wallSrcH = wall.height.toDouble();
+      // Scale: fit wall width to wallW, tile vertically
+      final double scale = wallW / wallSrcW;
+      final double wallTileH = wallSrcH * scale;
+
+      final int startT = (wallParallaxY / wallTileH).floor() - 1;
+      final int endT = ((wallParallaxY + h) / wallTileH).ceil() + 1;
+
+      final Paint wallPaint = Paint()
+        ..filterQuality = ui.FilterQuality.low
+        ..color =
+            const ui.Color(0xCCFFFFFF); // slight transparency to not overpower
+
+      final Rect wallSrc = Rect.fromLTWH(0, 0, wallSrcW, wallSrcH);
+
+      for (int t = startT; t <= endT; t++) {
+        final double tileY = camY + (t * wallTileH - wallParallaxY);
+        // Left wall
+        canvas.drawImageRect(wall, wallSrc,
+            Rect.fromLTWH(0, tileY, wallW, wallTileH), wallPaint);
+        // Right wall (flip horizontally)
+        canvas.save();
+        canvas.translate(w, tileY);
+        canvas.scale(-1, 1);
+        canvas.drawImageRect(
+            wall, wallSrc, Rect.fromLTWH(0, 0, wallW, wallTileH), wallPaint);
+        canvas.restore();
+      }
     }
   }
 }

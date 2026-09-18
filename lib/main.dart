@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:tower_climb/main_menu_screen.dart';
+import 'main_menu_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

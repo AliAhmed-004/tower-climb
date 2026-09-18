@@ -1,5 +1,5 @@
 name: tower_climb
-description: A vertical platformer inspired by Icy Tower.
+description: Tower Climb — vertical platformer.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -20,5 +20,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/
-    - assets/images/
+    - assets/images/background.png
+    - assets/images/rocky_floor.png
+    - assets/images/rocky_wall.png
+    - assets/images/character.png

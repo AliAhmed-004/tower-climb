@@ -4,10 +4,10 @@ import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
-import 'package:tower_climb/background.dart';
-import 'package:tower_climb/kill_floor.dart';
-import 'package:tower_climb/platform.dart';
-import 'package:tower_climb/player.dart';
+import 'player.dart';
+import 'platform.dart';
+import 'background.dart';
+import 'kill_floor.dart';
 
 class TowerGame extends FlameGame
     with HasCollisionDetection, TapDetector, ChangeNotifier {
@@ -62,6 +62,8 @@ class TowerGame extends FlameGame
 
     // Preload platform spritesheet before any platforms are spawned
     await GamePlatform.preload();
+    await Player.preload();
+    await GameBackground.preload();
 
     // Background
     world.add(GameBackground());
