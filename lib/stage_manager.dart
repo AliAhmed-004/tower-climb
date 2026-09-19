@@ -27,52 +27,52 @@ class StageConfig {
 
 const List<StageConfig> kStages = [
   StageConfig(
-    name:            'mossy',
-    bgAsset:         'mossy/mossy_background.png',
-    floorAsset:      'mossy/mossy_floor.png',
-    tileMinFraction: 0.45,
-    tileMaxFraction: 0.65,
-    scrollSpeed:     14,
+    name: 'mossy',
+    bgAsset: 'mossy/mossy_background.png',
+    floorAsset: 'mossy/mossy_floor.png',
+    tileMinFraction: 0.35,
+    tileMaxFraction: 0.45,
+    scrollSpeed: 20,
   ),
   StageConfig(
-    name:            'ancient_civilization',
-    bgAsset:         'ancient_civilization/ancient_civilization_background.png',
-    floorAsset:      'ancient_civilization/ancient_civilization_floor.png',
-    tileMinFraction: 0.38,
-    tileMaxFraction: 0.55,
-    scrollSpeed:     22,
-  ),
-  StageConfig(
-    name:            'eroded',
-    bgAsset:         'eroded/eroded_background.png',
-    floorAsset:      'eroded/eroded_floor.png',
-    tileMinFraction: 0.32,
-    tileMaxFraction: 0.47,
-    scrollSpeed:     32,
-  ),
-  StageConfig(
-    name:            'desert',
-    bgAsset:         'desert/desert_background.png',
-    floorAsset:      'desert/desert_floor.png',
-    tileMinFraction: 0.26,
+    name: 'ancient_civilization',
+    bgAsset: 'ancient_civilization/ancient_civilization_background.png',
+    floorAsset: 'ancient_civilization/ancient_civilization_floor.png',
+    tileMinFraction: 0.30,
     tileMaxFraction: 0.40,
-    scrollSpeed:     45,
+    scrollSpeed: 30,
   ),
   StageConfig(
-    name:            'snowy',
-    bgAsset:         'snowy/snowy_background.png',
-    floorAsset:      'snowy/snowy_floor.png',
+    name: 'eroded',
+    bgAsset: 'eroded/eroded_background.png',
+    floorAsset: 'eroded/eroded_floor.png',
+    tileMinFraction: 0.25,
+    tileMaxFraction: 0.30,
+    scrollSpeed: 45,
+  ),
+  StageConfig(
+    name: 'desert',
+    bgAsset: 'desert/desert_background.png',
+    floorAsset: 'desert/desert_floor.png',
     tileMinFraction: 0.20,
-    tileMaxFraction: 0.33,
-    scrollSpeed:     62,
+    tileMaxFraction: 0.30,
+    scrollSpeed: 60,
   ),
   StageConfig(
-    name:            'volcanic',
-    bgAsset:         'volcanic/volcanic_background.png',
-    floorAsset:      'volcanic/volcanic_floor.png',
+    name: 'snowy',
+    bgAsset: 'snowy/snowy_background.png',
+    floorAsset: 'snowy/snowy_floor.png',
     tileMinFraction: 0.15,
-    tileMaxFraction: 0.26,
-    scrollSpeed:     85,
+    tileMaxFraction: 0.20,
+    scrollSpeed: 80,
+  ),
+  StageConfig(
+    name: 'volcanic',
+    bgAsset: 'volcanic/volcanic_background.png',
+    floorAsset: 'volcanic/volcanic_floor.png',
+    tileMinFraction: 0.10,
+    tileMaxFraction: 0.15,
+    scrollSpeed: 95,
   ),
 ];
 
@@ -86,15 +86,15 @@ class StageManager {
 
   // Glitch mode RNG
   final Random _rng = Random();
-  int _glitchBgIndex   = 0;
+  int _glitchBgIndex = 0;
   int _glitchFloorIndex = 0;
-  double _glitchTimer  = 0;
+  double _glitchTimer = 0;
   static const double _glitchInterval = 0.8; // seconds between flickers
 
   // ── Preload ───────────────────────────────────────────────────────────────
   Future<void> preload() async {
     for (final stage in kStages) {
-      _images[stage.bgAsset]    = await Flame.images.load(stage.bgAsset);
+      _images[stage.bgAsset] = await Flame.images.load(stage.bgAsset);
       _images[stage.floorAsset] = await Flame.images.load(stage.floorAsset);
     }
   }
@@ -142,7 +142,8 @@ class StageManager {
   }
 
   ui.Image? floorImage(int floor) {
-    if (isGlitchMode(floor)) return _images[kStages[_glitchFloorIndex].floorAsset];
+    if (isGlitchMode(floor))
+      return _images[kStages[_glitchFloorIndex].floorAsset];
     return _images[currentStage(floor).floorAsset];
   }
 
@@ -173,7 +174,7 @@ class StageManager {
     _glitchTimer += dt;
     if (_glitchTimer >= _glitchInterval) {
       _glitchTimer = 0;
-      _glitchBgIndex    = _rng.nextInt(kStages.length);
+      _glitchBgIndex = _rng.nextInt(kStages.length);
       _glitchFloorIndex = _rng.nextInt(kStages.length);
     }
   }
