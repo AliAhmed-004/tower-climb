@@ -1,9 +1,11 @@
+import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flame/flame.dart';
 import 'game_screen.dart';
+import 'stage_manager.dart';
 
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
@@ -14,17 +16,13 @@ class MainMenuScreen extends StatefulWidget {
 
 class _MainMenuScreenState extends State<MainMenuScreen>
     with TickerProviderStateMixin {
-  // Assets
   ui.Image? _bgImage;
   ui.Image? _characterImage;
 
-  // Animations
   late AnimationController _pulseController;
   late Animation<double> _pulseAnim;
-
   late AnimationController _floatController;
   late Animation<double> _floatAnim;
-
   late AnimationController _fadeController;
   late Animation<double> _fadeAnim;
 
@@ -58,11 +56,13 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   }
 
   Future<void> _loadAssets() async {
-    final bg   = await Flame.images.load('background.png');
+    // Pick a random stage background
+    final stage = kStages[Random().nextInt(kStages.length)];
+    final bg = await Flame.images.load(stage.bgAsset);
     final char = await Flame.images.load('character.png');
     if (mounted) {
       setState(() {
-        _bgImage        = bg;
+        _bgImage = bg;
         _characterImage = char;
       });
       _fadeController.forward();
@@ -99,28 +99,25 @@ class _MainMenuScreenState extends State<MainMenuScreen>
         body: Stack(
           fit: StackFit.expand,
           children: [
-            // ── Background image (full bleed, slightly darkened) ────────────
+            // Background — shown even while loading via fallback colour
             if (_bgImage != null)
               FadeTransition(
                 opacity: _fadeAnim,
                 child: _GameBackground(image: _bgImage!),
               ),
 
-            // Dark vignette overlay so text is always readable
+            // Vignette
             Container(
               decoration: const BoxDecoration(
                 gradient: RadialGradient(
                   center: Alignment.center,
                   radius: 1.2,
-                  colors: [
-                    Color(0x00000000),
-                    Color(0xBB000000),
-                  ],
+                  colors: [Color(0x00000000), Color(0xBB000000)],
                 ),
               ),
             ),
 
-            // Dark band at top and bottom for legibility
+            // Top / bottom dark bands
             Column(
               children: [
                 Container(
@@ -147,18 +144,16 @@ class _MainMenuScreenState extends State<MainMenuScreen>
               ],
             ),
 
-            // ── Content ─────────────────────────────────────────────────────
+            // Content
             SafeArea(
               child: Column(
                 children: [
                   const Spacer(flex: 2),
 
-                  // Title
                   FadeTransition(
                     opacity: _fadeAnim,
                     child: Column(
                       children: [
-                        // Eyebrow text
                         Text(
                           'S P U D B Y T E',
                           style: GoogleFonts.pressStart2p(
@@ -168,15 +163,11 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                           ),
                         ),
                         const SizedBox(height: 14),
-                        // Main title — stacked, earthy green palette
                         ShaderMask(
                           shaderCallback: (bounds) => const LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
-                            colors: [
-                              Color(0xFFD4E8A0), // light moss
-                              Color(0xFF8AB860), // mid green
-                            ],
+                            colors: [Color(0xFFD4E8A0), Color(0xFF8AB860)],
                           ).createShader(bounds),
                           child: Text(
                             'TOWER',
@@ -186,10 +177,8 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                               letterSpacing: 6,
                               shadows: const [
                                 Shadow(
-                                  color: Color(0xFF2A4A1A),
-                                  offset: Offset(3, 3),
-                                  blurRadius: 0,
-                                ),
+                                    color: Color(0xFF2A4A1A),
+                                    offset: Offset(3, 3)),
                               ],
                             ),
                           ),
@@ -198,10 +187,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                           shaderCallback: (bounds) => const LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
-                            colors: [
-                              Color(0xFFFFE0A0),
-                              Color(0xFFCC9944),
-                            ],
+                            colors: [Color(0xFFFFE0A0), Color(0xFFCC9944)],
                           ).createShader(bounds),
                           child: Text(
                             'CLIMB',
@@ -212,10 +198,8 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                               height: 1.15,
                               shadows: const [
                                 Shadow(
-                                  color: Color(0xFF4A2A00),
-                                  offset: Offset(3, 3),
-                                  blurRadius: 0,
-                                ),
+                                    color: Color(0xFF4A2A00),
+                                    offset: Offset(3, 3)),
                               ],
                             ),
                           ),
@@ -235,57 +219,48 @@ class _MainMenuScreenState extends State<MainMenuScreen>
 
                   const Spacer(flex: 2),
 
-                  // Character — floating animation
-                  if (_characterImage != null)
-                    AnimatedBuilder(
-                      animation: _floatAnim,
-                      builder: (_, __) => Transform.translate(
-                        offset: Offset(0, _floatAnim.value),
-                        child: _CharacterWidget(image: _characterImage!),
-                      ),
-                    )
-                  else
-                    const SizedBox(height: 100),
+                  // Character always present — placeholder sized box while loading
+                  AnimatedBuilder(
+                    animation: _floatAnim,
+                    builder: (_, __) => Transform.translate(
+                      offset: Offset(0, _floatAnim.value),
+                      child: _characterImage != null
+                          ? _CharacterWidget(image: _characterImage!)
+                          : const SizedBox(width: 50, height: 100),
+                    ),
+                  ),
 
                   const Spacer(flex: 1),
 
                   // Play button
                   AnimatedBuilder(
                     animation: _pulseAnim,
-                    builder: (_, child) => Transform.scale(
-                      scale: _pulseAnim.value,
-                      child: child,
-                    ),
+                    builder: (_, child) =>
+                        Transform.scale(scale: _pulseAnim.value, child: child),
                     child: GestureDetector(
                       onTap: _startGame,
                       child: Container(
                         width: 220,
                         height: 60,
                         decoration: BoxDecoration(
-                          // Earthy golden button to match the ruins palette
                           gradient: const LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
-                            colors: [
-                              Color(0xFFD4A84B),
-                              Color(0xFF8A6420),
-                            ],
+                            colors: [Color(0xFFD4A84B), Color(0xFF8A6420)],
                           ),
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                            color: const Color(0xFFE8C870),
-                            width: 2,
-                          ),
+                              color: const Color(0xFFE8C870), width: 2),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFCC9922).withValues(alpha: 0.5),
+                              color: const Color(0xFFCC9922)
+                                  .withValues(alpha: 0.5),
                               blurRadius: 18,
                               spreadRadius: 2,
                             ),
                             const BoxShadow(
                               color: Color(0xFF3A2000),
                               offset: Offset(3, 3),
-                              blurRadius: 0,
                             ),
                           ],
                         ),
@@ -304,7 +279,6 @@ class _MainMenuScreenState extends State<MainMenuScreen>
 
                   const SizedBox(height: 28),
 
-                  // Controls hint
                   const Padding(
                     padding: EdgeInsets.only(bottom: 28),
                     child: Row(
@@ -326,15 +300,11 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   }
 }
 
-// ── Background widget ──────────────────────────────────────────────────────────
 class _GameBackground extends StatelessWidget {
   final ui.Image image;
   const _GameBackground({required this.image});
-
   @override
-  Widget build(BuildContext context) {
-    return CustomPaint(painter: _BgPainter(image));
-  }
+  Widget build(BuildContext context) => CustomPaint(painter: _BgPainter(image));
 }
 
 class _BgPainter extends CustomPainter {
@@ -343,31 +313,20 @@ class _BgPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Fill screen, darken slightly
     final double imgW = image.width.toDouble();
     final double imgH = image.height.toDouble();
-
-    // Cover: scale so image fills screen, crop centre
-    final double scaleX = size.width  / imgW;
-    final double scaleY = size.height / imgH;
-    final double scale  = scaleX > scaleY ? scaleX : scaleY;
-
-    final double drawW  = imgW * scale;
-    final double drawH  = imgH * scale;
-    final double offsetX = (size.width  - drawW) / 2;
-    final double offsetY = (size.height - drawH) / 2;
-
-    // Draw darkened background
+    final double scale = max(size.width / imgW, size.height / imgH);
+    final double drawW = imgW * scale;
+    final double drawH = imgH * scale;
     canvas.drawImageRect(
       image,
       Rect.fromLTWH(0, 0, imgW, imgH),
-      Rect.fromLTWH(offsetX, offsetY, drawW, drawH),
+      Rect.fromLTWH(
+          (size.width - drawW) / 2, (size.height - drawH) / 2, drawW, drawH),
       Paint()
         ..filterQuality = ui.FilterQuality.medium
-        ..colorFilter = const ui.ColorFilter.mode(
-          Color(0x55000000), // 33% darkening
-          BlendMode.darken,
-        ),
+        ..colorFilter =
+            const ui.ColorFilter.mode(Color(0x55000000), BlendMode.darken),
     );
   }
 
@@ -375,50 +334,37 @@ class _BgPainter extends CustomPainter {
   bool shouldRepaint(_BgPainter old) => old.image != image;
 }
 
-// ── Character widget ───────────────────────────────────────────────────────────
 class _CharacterWidget extends StatelessWidget {
   final ui.Image image;
   const _CharacterWidget({required this.image});
-
   @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: const Size(80, 150),
-      painter: _CharacterPainter(image),
-    );
-  }
+  Widget build(BuildContext context) =>
+      CustomPaint(size: const Size(80, 80), painter: _CharacterPainter(image));
 }
 
 class _CharacterPainter extends CustomPainter {
   final ui.Image image;
   _CharacterPainter(this.image);
 
-  // Character occupies x=124-370, y=35-469 in the 500x500 image
-  static const Rect _src = Rect.fromLTRB(124, 35, 370, 469);
-
   @override
   void paint(Canvas canvas, Size size) {
+    // Full image is the tight-cropped character
+    final src =
+        Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
+    final dst = Rect.fromLTWH(0, 0, size.width, size.height);
     canvas.drawImageRect(
-      image,
-      _src,
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint()
-        ..filterQuality = ui.FilterQuality.medium
-        // Subtle drop shadow via colour filter — just a faint tint
-        ..imageFilter = ui.ImageFilter.blur(sigmaX: 0, sigmaY: 0),
-    );
+        image, src, dst, Paint()..filterQuality = ui.FilterQuality.medium);
 
-    // Character ground shadow
-    final shadowPaint = Paint()
-      ..color = const Color(0x44000000)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    // Ground shadow
     canvas.drawOval(
       Rect.fromCenter(
-        center: Offset(size.width / 2, size.height - 4),
+        center: Offset(size.width / 2, size.height + 4),
         width: size.width * 0.6,
         height: 8,
       ),
-      shadowPaint,
+      Paint()
+        ..color = const Color(0x44000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
     );
   }
 
@@ -426,7 +372,6 @@ class _CharacterPainter extends CustomPainter {
   bool shouldRepaint(_CharacterPainter old) => old.image != image;
 }
 
-// ── Hint chip ─────────────────────────────────────────────────────────────────
 class _HintChip extends StatelessWidget {
   final String label;
   const _HintChip({required this.label});
@@ -443,9 +388,7 @@ class _HintChip extends StatelessWidget {
       child: Text(
         label,
         style: GoogleFonts.pressStart2p(
-          fontSize: 7,
-          color: const Color(0xFF5A7A4A),
-        ),
+            fontSize: 7, color: const Color(0xFF5A7A4A)),
       ),
     );
   }

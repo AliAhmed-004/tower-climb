@@ -7,8 +7,9 @@ import 'player.dart';
 import 'platform.dart';
 import 'background.dart';
 import 'kill_floor.dart';
+import 'stage_manager.dart';
 
-enum GameState { waiting, playing, over }
+enum GameState { waiting, playing, checkpoint, over }
 
 class TowerGame extends FlameGame
     with HasCollisionDetection, MultiTouchDragDetector, ChangeNotifier {
@@ -16,36 +17,45 @@ class TowerGame extends FlameGame
 
   TowerGame({required this.onGameOver});
 
+  // ── Stage ──────────────────────────────────────────────────────────────────
+  final StageManager stageManager = StageManager();
+
   // ── State ──────────────────────────────────────────────────────────────────
   late Player player;
   final List<GamePlatform> platforms = [];
   late KillFloor killFloor;
 
-  GameState gameState = GameState.waiting;
-  int currentFloor = 0;
-  int combo        = 0;
-  int _bestFloor   = 0;
+  GameState gameState  = GameState.waiting;
+  int  currentFloor    = 0;
+  int  combo           = 0;
+  int  _bestFloor      = 0;
+
+  // The floor the player is currently standing on (used for checkpoint detect)
+  int  _lastLandedFloor = 0;
 
   bool _leftDown  = false;
   bool _rightDown = false;
-
-  final Map<int, bool> _activeTouches = {}; // pointerId → isLeftSide
+  final Map<int, bool> _activeTouches = {};
 
   // Platform generation
   final Random _rng = Random();
   double _highestPlatformY = 0;
-  int _platformCount = 0;
+  int    _platformCount    = 0;
 
   // Camera
   double _cameraTargetY = 0;
   double _autoScrollY   = 0;
 
+  // Checkpoint: camera resumes after player lands ABOVE the checkpoint floor
+  bool _checkpointLanded = false; // player has bounced off checkpoint
+  int  _checkpointFloor  = 0;
+
+  // Glitch mode timer (drives background flicker)
+  double _glitchTimer = 0;
+
   // ── Constants ──────────────────────────────────────────────────────────────
-  static const double platformSpacing   = 110.0;
-  static const double killFloorGrace    = platformSpacing * 3.0;
-  static const double _scrollSpeedMin  = 12.0;
-  static const double _scrollSpeedMax  = 110.0;
-  static const double _scrollRampFloors = 60.0;
+  static const double platformSpacing = 82.0; // reachable without momentum
+  static const double killFloorGrace  = platformSpacing * 3.0;
 
   @override
   Color backgroundColor() => const Color(0xFF0A0A1A);
@@ -55,9 +65,8 @@ class TowerGame extends FlameGame
   Future<void> onLoad() async {
     camera.viewfinder.anchor = Anchor.topLeft;
 
-    await GamePlatform.preload();
+    await stageManager.preload();
     await Player.preload();
-    await GameBackground.preload();
 
     world.add(GameBackground());
     _spawnStartingPlatforms();
@@ -66,39 +75,55 @@ class TowerGame extends FlameGame
     player = Player();
     player.position = Vector2(
       size.x / 2 - Player.playerWidth / 2,
-      groundFloorY - Player.playerHeight,
+      groundFloorY - Player.hitboxOffsetY - Player.hitboxH,
     );
     world.add(player);
 
     killFloor = KillFloor();
     world.add(killFloor);
 
-    // Camera: ground sits ~75% down the screen
     final double groundCamY = (size.y - 60) - size.y * 0.75;
     camera.viewfinder.position = Vector2(0, groundCamY);
     _cameraTargetY = groundCamY;
     _autoScrollY   = groundCamY;
-
     killFloor.position.y = camera.viewfinder.position.y + size.y + killFloorGrace;
   }
 
   // ── Spawning ───────────────────────────────────────────────────────────────
   void _spawnStartingPlatforms() {
-    _addPlatform(x: 0, y: size.y - 60, width: size.x, isGround: true);
+    _addPlatform(
+      x: 0,
+      y: size.y - 60,
+      width: size.x,
+      isGround: true,
+      floor: 0,
+    );
     _highestPlatformY = size.y - 60;
-    for (int i = 0; i < 6; i++) { _spawnNextPlatform(forced: true); }
+    for (int i = 0; i < 8; i++) { _spawnNextPlatform(); }
   }
 
-  void _spawnNextPlatform({bool forced = false}) {
-    final double difficulty = min(_platformCount / 30.0, 1.0);
-    final double minWidth   = _lerp(size.x * 0.28, size.x * 0.12, difficulty);
-    final double maxWidth   = _lerp(size.x * 0.45, size.x * 0.25, difficulty);
-    final double w = minWidth + _rng.nextDouble() * (maxWidth - minWidth);
-    final double x = _rng.nextDouble() * (size.x - w);
-    final double gap = platformSpacing + _rng.nextDouble() * _lerp(20, 40, difficulty);
-    final double y = _highestPlatformY - gap;
+  void _spawnNextPlatform() {
+    // What floor will this platform be?
+    final int platformFloor = _worldYToFloor(_highestPlatformY - platformSpacing);
 
-    _addPlatform(x: x, y: y, width: w);
+    // Checkpoint: every 100th floor gets a full-width platform
+    final bool isCheckpoint = platformFloor > 0 && platformFloor % 100 == 0;
+
+    double w;
+    double x;
+
+    if (isCheckpoint) {
+      w = size.x;
+      x = 0;
+    } else {
+      w = stageManager.randomTileWidth(platformFloor, size.x, _rng);
+      // Clamp so platform stays fully within screen edges
+      x = _rng.nextDouble() * (size.x - w);
+    }
+
+    final double y = _highestPlatformY - platformSpacing;
+
+    _addPlatform(x: x, y: y, width: w, floor: platformFloor, isCheckpoint: isCheckpoint);
     _highestPlatformY = y;
     _platformCount++;
   }
@@ -107,13 +132,18 @@ class TowerGame extends FlameGame
     required double x,
     required double y,
     required double width,
-    bool isGround = false,
+    required int floor,
+    bool isGround    = false,
+    bool isCheckpoint = false,
   }) {
+    final double blend = stageManager.blendFactor(floor);
     final p = GamePlatform(
-      position: Vector2(x, y),
-      width: width,
-      isGround: isGround,
-      rng: _rng,
+      position:      Vector2(x, y),
+      width:         width,
+      isCheckpoint:  isCheckpoint,
+      floorImg:      stageManager.floorImage(floor),
+      floorImgNext:  stageManager.floorImageNext(floor),
+      blendAtSpawn:  blend,
     );
     world.add(p);
     platforms.add(p);
@@ -125,19 +155,32 @@ class TowerGame extends FlameGame
     if (gameState == GameState.over) return;
     super.update(dt);
 
+    // Glitch mode background flicker
+    if (stageManager.isGlitchMode(currentFloor)) {
+      _glitchTimer += dt;
+      if (_glitchTimer > 0.8) {
+        _glitchTimer = 0;
+        stageManager.updateGlitch(dt);
+      }
+    }
+
     if (gameState == GameState.waiting) {
-      // Player can walk left/right on the ground, camera stays frozen
       player.moveLeft  = _leftDown;
       player.moveRight = _rightDown;
       player.groundSlide(dt, braking: !_leftDown && !_rightDown);
+      _clampPlayerToWalls();
+      player.position.y = size.y - 60 - Player.hitboxOffsetY - Player.hitboxH;
+      killFloor.position.y = camera.viewfinder.position.y + size.y + killFloorGrace;
+      return;
+    }
 
-      // Pin to ground
-      player.position.y = size.y - 60 - Player.playerHeight;
-
-      // Wrap horizontally
-      if (player.position.x + Player.playerWidth < 0) player.position.x = size.x;
-      if (player.position.x > size.x) player.position.x = -Player.playerWidth;
-
+    if (gameState == GameState.checkpoint) {
+      // Frozen: player stands on checkpoint, camera doesn't move
+      // Input is still live so player can move left/right on the checkpoint floor
+      player.moveLeft  = _leftDown;
+      player.moveRight = _rightDown;
+      player.groundSlide(dt, braking: !_leftDown && !_rightDown);
+      _clampPlayerToWalls();
       killFloor.position.y = camera.viewfinder.position.y + size.y + killFloorGrace;
       return;
     }
@@ -146,8 +189,8 @@ class TowerGame extends FlameGame
     player.moveLeft  = _leftDown;
     player.moveRight = _rightDown;
 
-    final double scrollT     = (currentFloor / _scrollRampFloors).clamp(0.0, 1.0);
-    final double scrollSpeed = _lerp(_scrollSpeedMin, _scrollSpeedMax, scrollT);
+    // Scroll speed comes from stage manager — fixed per stage
+    final double scrollSpeed = stageManager.scrollSpeed(currentFloor);
     _autoScrollY -= scrollSpeed * dt;
 
     final double playerFollowY = player.position.y - size.y * 0.4;
@@ -165,26 +208,43 @@ class TowerGame extends FlameGame
 
     killFloor.position.y = camera.viewfinder.position.y + size.y + killFloorGrace;
 
+    // Despawn platforms: keep 3 floors below viewport bottom
+    final double despawnY = camera.viewfinder.position.y + size.y + (platformSpacing * 3);
     platforms.removeWhere((p) {
-      if (p.position.y > camera.viewfinder.position.y + size.y + 200) {
+      if (p.position.y > despawnY) {
         p.removeFromParent();
         return true;
       }
       return false;
     });
 
-    while (_highestPlatformY > camera.viewfinder.position.y - size.y * 0.5) {
+    // Spawn ahead
+    while (_highestPlatformY > camera.viewfinder.position.y - size.y * 0.6) {
       _spawnNextPlatform();
     }
 
+    // Floor score
     final int floor = _worldYToFloor(player.position.y);
     if (floor > currentFloor) {
       currentFloor = floor;
       notifyListeners();
     }
 
+    // Death
     if (player.position.y > killFloor.position.y) {
       _triggerGameOver();
+    }
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  void _clampPlayerToWalls() {
+    if (player.position.x < 0) {
+      player.position.x = 0;
+      player.zeroVelocityX();
+    }
+    if (player.position.x + Player.playerWidth > size.x) {
+      player.position.x = size.x - Player.playerWidth;
+      player.zeroVelocityX();
     }
   }
 
@@ -192,12 +252,32 @@ class TowerGame extends FlameGame
     return max(0, ((size.y - 60 - worldY) / platformSpacing).floor());
   }
 
-  // ── Collision ──────────────────────────────────────────────────────────────
+  // ── Collision callbacks ────────────────────────────────────────────────────
   void onPlayerLandedPlatform(GamePlatform platform) {
-    if (gameState != GameState.playing) return;
     final int floor = _worldYToFloor(platform.position.y);
-    combo = floor > currentFloor ? combo + 1 : 0;
-    notifyListeners();
+
+    if (gameState == GameState.playing) {
+      // Checkpoint detection
+      if (platform.isCheckpoint && floor != _checkpointFloor) {
+        _checkpointFloor  = floor;
+        _checkpointLanded = false;
+        gameState = GameState.checkpoint;
+        notifyListeners();
+        return;
+      }
+
+      // Camera resumes after first landing above a checkpoint
+      if (gameState == GameState.playing && !_checkpointLanded) {
+        _checkpointLanded = true;
+      }
+
+      combo = floor > _lastLandedFloor ? combo + 1 : 0;
+      _lastLandedFloor = floor;
+      if (floor > currentFloor) {
+        currentFloor = floor;
+      }
+      notifyListeners();
+    }
   }
 
   // ── Input ──────────────────────────────────────────────────────────────────
@@ -207,8 +287,8 @@ class TowerGame extends FlameGame
     _activeTouches[pointerId] = isLeft;
     _updateSides();
 
-    // Any tap while waiting launches the game
     if (gameState == GameState.waiting) _launch();
+    else if (gameState == GameState.checkpoint) _resumeFromCheckpoint();
   }
 
   @override
@@ -235,9 +315,20 @@ class TowerGame extends FlameGame
     _rightDown = _activeTouches.values.any((isLeft) => !isLeft);
   }
 
-  // ── Launch ─────────────────────────────────────────────────────────────────
+  // ── Wall clamp (replaces wrap) ─────────────────────────────────────────────
+  // Called from player.dart via game reference after horizontal movement
+  void clampPlayerToWalls() => _clampPlayerToWalls();
+
+  // ── Launch / resume ────────────────────────────────────────────────────────
   void _launch() {
     gameState    = GameState.playing;
+    _autoScrollY = camera.viewfinder.position.y;
+    notifyListeners();
+  }
+
+  void _resumeFromCheckpoint() {
+    // Player will bounce on next update cycle — physics re-enabled
+    gameState = GameState.playing;
     _autoScrollY = camera.viewfinder.position.y;
     notifyListeners();
   }

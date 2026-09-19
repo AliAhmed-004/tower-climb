@@ -20,7 +20,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/background.png
-    - assets/images/rocky_floor.png
-    - assets/images/rocky_wall.png
     - assets/images/character.png
+    - assets/images/mossy/
+    - assets/images/ancient_civilization/
+    - assets/images/eroded/
+    - assets/images/desert/
+    - assets/images/snowy/
+    - assets/images/volcanic/

@@ -55,8 +55,9 @@ class _GameScreenState extends State<GameScreen> {
       body: GameWidget(
         game: _game,
         overlayBuilderMap: {
-          'hud':    (context, game) => _HudOverlay(game: game as TowerGame),
-          'launch': (context, game) => _LaunchPrompt(game: game as TowerGame),
+          'hud':        (context, game) => _HudOverlay(game: game as TowerGame),
+          'launch':     (context, game) => _LaunchPrompt(game: game as TowerGame),
+          'checkpoint': (context, game) => _CheckpointPrompt(game: game as TowerGame),
         },
         initialActiveOverlays: const ['hud', 'launch'],
       ),
@@ -176,7 +177,14 @@ class _HudOverlayState extends State<_HudOverlay> {
   }
 
   void _onGameUpdate() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    // Show/hide checkpoint overlay based on game state
+    if (widget.game.gameState == GameState.checkpoint) {
+      widget.game.overlays.add('checkpoint');
+    } else {
+      widget.game.overlays.remove('checkpoint');
+    }
   }
 
   @override
@@ -233,6 +241,76 @@ class _HudOverlayState extends State<_HudOverlay> {
                 ],
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Checkpoint prompt ─────────────────────────────────────────────────────────
+class _CheckpointPrompt extends StatefulWidget {
+  final TowerGame game;
+  const _CheckpointPrompt({required this.game});
+
+  @override
+  State<_CheckpointPrompt> createState() => _CheckpointPromptState();
+}
+
+class _CheckpointPromptState extends State<_CheckpointPrompt>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Align(
+        alignment: const Alignment(0, -0.2),
+        child: AnimatedBuilder(
+          animation: _pulse,
+          builder: (_, __) => Opacity(
+            opacity: 0.6 + _pulse.value * 0.4,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'FLOOR ${widget.game.currentFloor}',
+                  style: GoogleFonts.pressStart2p(
+                    fontSize: 14,
+                    color: const Color(0xFFFFE066),
+                    shadows: const [
+                      Shadow(color: Colors.black, offset: Offset(2, 2)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'tap to continue the climb',
+                  style: GoogleFonts.pressStart2p(
+                    fontSize: 7,
+                    color: Colors.white,
+                    shadows: const [
+                      Shadow(color: Colors.black, offset: Offset(1, 1), blurRadius: 3),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

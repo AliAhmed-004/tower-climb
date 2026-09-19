@@ -1,87 +1,97 @@
 import 'dart:ui';
 
 import 'package:flame/components.dart';
-import 'package:flame/flame.dart';
-import 'package:flame/game.dart';
 import 'dart:ui' as ui;
+import 'tower_game.dart';
 
-class GameBackground extends Component with HasGameReference<FlameGame> {
-  static ui.Image? _bgImage;
-  static ui.Image? _wallImage;
-
-  static Future<void> preload() async {
-    _bgImage = await Flame.images.load('background.png');
-    _wallImage = await Flame.images.load('rocky_wall.png');
-  }
-
+class GameBackground extends Component with HasGameReference<TowerGame> {
   @override
   void render(Canvas canvas) {
-    final double camY = game.camera.viewfinder.position.y;
-    final double w = game.size.x;
-    final double h = game.size.y;
+    final TowerGame g = game;
+    final double camY = g.camera.viewfinder.position.y;
+    final double w = g.size.x;
+    final double h = g.size.y;
+    final int floor = g.currentFloor;
+    final double blend = g.stageManager.blendFactor(floor);
 
-    // ── Background ─────────────────────────────────────────────────────────
-    final ui.Image? bg = _bgImage;
-    if (bg != null) {
-      // Tile the square background vertically as the player climbs.
-      // Slow parallax: bg scrolls at 30% of camera speed.
-      final double parallaxY = camY * 0.30;
-      final double tileH = w; // square tile scaled to screen width
+    final ui.Image? bgCurrent = g.stageManager.bgImage(floor);
+    final ui.Image? bgNext = g.stageManager.bgImageNext(floor);
 
-      final int startTile = (parallaxY / tileH).floor() - 1;
-      final int endTile = ((parallaxY + h) / tileH).ceil() + 1;
+    // Fill fallback
+    canvas.drawRect(
+      Rect.fromLTWH(0, camY, w, h),
+      Paint()..color = const ui.Color(0xFF0D1B0F),
+    );
 
-      final Paint bgPaint = Paint()..filterQuality = ui.FilterQuality.low;
-      for (int t = startTile; t <= endTile; t++) {
-        final Rect src =
-            Rect.fromLTWH(0, 0, bg.width.toDouble(), bg.height.toDouble());
-        final Rect dst =
-            Rect.fromLTWH(0, camY + (t * tileH - parallaxY), w, tileH);
-        canvas.drawImageRect(bg, src, dst, bgPaint);
-      }
-    } else {
-      // Fallback solid colour
-      canvas.drawRect(
-        Rect.fromLTWH(0, camY, w, h),
-        Paint()..color = const ui.Color(0xFF0D1B0F),
-      );
+    if (bgCurrent != null) {
+      _drawBgTiled(canvas, bgCurrent, camY, w, h, 1.0);
     }
 
-    // ── Side walls ─────────────────────────────────────────────────────────
-    final ui.Image? wall = _wallImage;
-    if (wall != null) {
-      // Wall scrolls at 60% of camera — closer than bg, further than platforms
-      final double wallParallaxY = camY * 0.60;
-      final double wallW = w * 0.18; // ~18% of screen width each side
-      final double wallSrcW = wall.width.toDouble();
-      final double wallSrcH = wall.height.toDouble();
-      // Scale: fit wall width to wallW, tile vertically
-      final double scale = wallW / wallSrcW;
-      final double wallTileH = wallSrcH * scale;
+    // Blend next stage background on top
+    if (bgNext != null && blend > 0) {
+      _drawBgTiled(canvas, bgNext, camY, w, h, blend);
+    }
 
-      final int startT = (wallParallaxY / wallTileH).floor() - 1;
-      final int endT = ((wallParallaxY + h) / wallTileH).ceil() + 1;
+    // Glitch mode flicker
+    if (g.stageManager.isGlitchMode(floor)) {
+      g.stageManager.updateGlitch(0); // timer driven by tower_game
+    }
+  }
 
-      final Paint wallPaint = Paint()
-        ..filterQuality = ui.FilterQuality.low
-        ..color =
-            const ui.Color(0xCCFFFFFF); // slight transparency to not overpower
+  void _drawBgTiled(
+    Canvas canvas,
+    ui.Image img,
+    double camY,
+    double w,
+    double h,
+    double opacity,
+  ) {
+    final double imgW = img.width.toDouble();
+    final double imgH = img.height.toDouble();
 
-      final Rect wallSrc = Rect.fromLTWH(0, 0, wallSrcW, wallSrcH);
+    // Scale image to fill screen width, maintain aspect ratio
+    final double scale = w / imgW;
+    final double tileH = imgH * scale;
 
-      for (int t = startT; t <= endT; t++) {
-        final double tileY = camY + (t * wallTileH - wallParallaxY);
-        // Left wall
-        canvas.drawImageRect(wall, wallSrc,
-            Rect.fromLTWH(0, tileY, wallW, wallTileH), wallPaint);
-        // Right wall (flip horizontally)
-        canvas.save();
-        canvas.translate(w, tileY);
-        canvas.scale(-1, 1);
-        canvas.drawImageRect(
-            wall, wallSrc, Rect.fromLTWH(0, 0, wallW, wallTileH), wallPaint);
-        canvas.restore();
-      }
+    // Parallax: bg scrolls at 40% of camera speed
+    final double parallaxY = camY * 0.40;
+
+    // Which tiles are visible + 1 buffer below (for despawn safety)
+    final int startTile = (parallaxY / tileH).floor() - 1;
+    final int endTile = ((parallaxY + h) / tileH).ceil() + 1; // +1 buffer below
+
+    final Paint paint = Paint()
+      ..filterQuality = ui.FilterQuality.low
+      ..color = ui.Color.fromRGBO(255, 255, 255, opacity.clamp(0.0, 1.0));
+
+    final Rect src = Rect.fromLTWH(0, 0, imgW, imgH);
+
+    for (int t = startTile; t <= endTile; t++) {
+      final double tileY = camY + (t * tileH - parallaxY);
+
+      // Bottom-edge gradient fade to hide the seam between tiles
+      // Draw tile
+      canvas.drawImageRect(
+        img,
+        src,
+        Rect.fromLTWH(0, tileY, w, tileH),
+        paint,
+      );
+
+      // Seam cover: dark gradient over bottom 12% of each tile
+      final double fadeH = tileH * 0.12;
+      final ui.Gradient seamGrad = ui.Gradient.linear(
+        Offset(0, tileY + tileH - fadeH),
+        Offset(0, tileY + tileH),
+        [
+          const ui.Color(0x00000000),
+          ui.Color.fromRGBO(0, 0, 0, (opacity * 0.85).clamp(0.0, 1.0)),
+        ],
+      );
+      canvas.drawRect(
+        Rect.fromLTWH(0, tileY + tileH - fadeH, w, fadeH),
+        Paint()..shader = seamGrad,
+      );
     }
   }
 }

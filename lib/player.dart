@@ -10,57 +10,61 @@ import 'platform.dart';
 class Player extends PositionComponent
     with HasGameReference<TowerGame>, CollisionCallbacks {
   // ── Asset ──────────────────────────────────────────────────────────────────
-  // character.png is a single idle frame: 500x500, character at x=134-360, y=45-469
-  // We cropped it to 246x444 (character_cropped.png) with 10px padding
   static ui.Image? _sheet;
-
   static Future<void> preload() async {
     _sheet = await Flame.images.load('character.png');
   }
 
   // ── Display size ───────────────────────────────────────────────────────────
-  // Source is 500x500 with character ~226x424px inside
-  // We want the rendered character ~40px wide on screen
+  // character.png is the tight-cropped idle frame
   static const double playerWidth = 40.0;
-  static const double playerHeight = 75.0; // maintain aspect ~226:424
 
-  // Source rect of the character within the 500x500 image
-  static const double _srcX = 124.0;
-  static const double _srcY = 35.0;
-  static const double _srcW = 246.0;
-  static const double _srcH = 444.0;
+  // Source rect — full image is the character, no wasted padding
+  static const double _srcX = 0;
+  static const double _srcY = 0;
+  static const double _srcW = 500.0; // update if image differs
+  static const double _srcH = 500.0;
+
+  // Rendered height maintains 1:1 aspect of the source
+  static const double _charRenderH =
+      playerWidth * (_srcH / _srcW); // = 40px for 1:1
+
+  // Hitbox covers lower 85% — excludes a little head clearance
+  static const double hitboxH = _charRenderH * 0.85;
+  static const double hitboxOffsetY = _charRenderH - hitboxH;
 
   // ── Physics ────────────────────────────────────────────────────────────────
   static const double gravity = 900.0;
   static const double moveSpeed = 240.0;
-  static const double maxHorzSpeed = 320.0;
+  static const double maxHorzSpeed = 340.0;
   static const double friction = 0.82;
   static const double baseBounceVelocity = -420.0;
-  static const double speedBonusFactor = 0.65;
+  static const double speedBonusFactor = 0.60;
 
   // ── State ──────────────────────────────────────────────────────────────────
   bool moveLeft = false;
   bool moveRight = false;
 
   final Vector2 _velocity = Vector2.zero();
-  bool _onGround = false;
   bool _facingLeft = false;
 
-  // Simple 2-frame bob for idle feel (no full animation yet)
   double _bobTimer = 0;
   double _bobOffset = 0;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
   @override
   Future<void> onLoad() async {
-    size = Vector2(playerWidth, playerHeight);
-    add(RectangleHitbox(size: size, isSolid: true));
+    size = Vector2(playerWidth, _charRenderH);
+    add(RectangleHitbox(
+      size: Vector2(playerWidth, hitboxH),
+      position: Vector2(0, hitboxOffsetY),
+      isSolid: true,
+    ));
   }
 
   // ── Update ─────────────────────────────────────────────────────────────────
   @override
   void update(double dt) {
-    // Horizontal
     if (moveLeft) {
       _velocity.x -= moveSpeed * dt * 6;
       _facingLeft = true;
@@ -75,26 +79,17 @@ class Player extends PositionComponent
     }
     _velocity.x = _velocity.x.clamp(-maxHorzSpeed, maxHorzSpeed);
 
-    // Gravity
     _velocity.y += gravity * dt;
-
-    // Move
     position += _velocity * dt;
 
-    // Horizontal wrap
-    final double sw = game.size.x;
-    if (position.x + playerWidth < 0) position.x = sw;
-    if (position.x > sw) position.x = -playerWidth;
+    // Solid walls — clamp position and kill horizontal velocity on impact
+    game.clampPlayerToWalls();
 
-    _onGround = false;
-
-    // Idle bob
     _bobTimer += dt;
-    _bobOffset = _onGround ? (sin(_bobTimer * 3.0) * 1.5) : 0;
+    _bobOffset = sin(_bobTimer * 3.0) * 1.0;
   }
 
-  /// Called by TowerGame during the waiting state.
-  /// Moves the player horizontally on the ground with no gravity or bounce.
+  /// Horizontal-only movement for waiting / checkpoint states (no gravity/bounce).
   void groundSlide(double dt, {required bool braking}) {
     if (!braking) {
       if (moveLeft) {
@@ -106,18 +101,16 @@ class Player extends PositionComponent
         _facingLeft = false;
       }
     }
-
-    // Always apply friction; braking just means no new input is added above
     _velocity.x *= pow(friction, dt * 60).toDouble();
     _velocity.x = _velocity.x.clamp(-maxHorzSpeed, maxHorzSpeed);
-
-    // Only horizontal movement — no gravity, no vertical velocity
     position.x += _velocity.x * dt;
 
-    // Idle bob while standing
     _bobTimer += dt;
-    _bobOffset = sin(_bobTimer * 3.0) * 1.5;
+    _bobOffset = sin(_bobTimer * 3.0) * 1.0;
   }
+
+  /// Zero horizontal velocity — called on wall impact.
+  void zeroVelocityX() => _velocity.x = 0;
 
   // ── Collision ──────────────────────────────────────────────────────────────
   @override
@@ -129,14 +122,23 @@ class Player extends PositionComponent
 
   void _handlePlatformCollision(GamePlatform platform) {
     if (_velocity.y <= 0) return;
-    final double playerBottom = position.y + playerHeight;
+
+    final double feetY = position.y + hitboxOffsetY + hitboxH;
     final double platformTop = platform.position.y;
-    if (playerBottom > platformTop + 16) return; // side hit
+    if (feetY > platformTop + 16) return; // side hit
 
-    position.y = platformTop - playerHeight;
-    _onGround = true;
+    // Snap feet to platform surface
+    position.y = platformTop - hitboxOffsetY - hitboxH;
+
+    if (platform.isCheckpoint && game.gameState == GameState.checkpoint) {
+      // On checkpoint floor: pin player, no bounce
+      _velocity.y = 0;
+      game.onPlayerLandedPlatform(platform);
+      return;
+    }
+
+    // Normal auto-bounce: height scales with horizontal speed
     _velocity.y = baseBounceVelocity - _velocity.x.abs() * speedBonusFactor;
-
     game.onPlayerLandedPlatform(platform);
   }
 
@@ -148,25 +150,23 @@ class Player extends PositionComponent
     final ui.Image? img = _sheet;
     if (img == null) {
       canvas.drawRect(
-        Rect.fromLTWH(0, _bobOffset, playerWidth, playerHeight),
+        Rect.fromLTWH(0, _bobOffset, playerWidth, _charRenderH),
         Paint()..color = const ui.Color(0xFF5C8A3C),
       );
       return;
     }
 
-    final Rect src = Rect.fromLTWH(_srcX, _srcY, _srcW, _srcH);
-    final Rect dst = Rect.fromLTWH(0, _bobOffset, playerWidth, playerHeight);
+    final Rect src = const Rect.fromLTWH(_srcX, _srcY, _srcW, _srcH);
+    final Rect dst = Rect.fromLTWH(0, _bobOffset, playerWidth, _charRenderH);
+    final paint = Paint()..filterQuality = ui.FilterQuality.medium;
 
     if (_facingLeft) {
-      // Flip horizontally around the centre of the sprite
       canvas.save();
       canvas.translate(playerWidth, 0);
       canvas.scale(-1, 1);
-      final paint = Paint()..filterQuality = ui.FilterQuality.medium;
       canvas.drawImageRect(img, src, dst, paint);
       canvas.restore();
     } else {
-      final paint = Paint()..filterQuality = ui.FilterQuality.medium;
       canvas.drawImageRect(img, src, dst, paint);
     }
   }
