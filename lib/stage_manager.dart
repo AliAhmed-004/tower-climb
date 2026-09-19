@@ -107,12 +107,12 @@ class StageManager {
     return idx < kStages.length ? idx : -1;
   }
 
-  bool isGlitchMode(int floor) => floor >= kStages.length * 100;
+  bool isGlitchMode(num floor) => floor >= kStages.length * 100;
 
   /// 0.0 = fully current stage, 1.0 = fully next stage
-  double blendFactor(int floor) {
+  double blendFactor(num floor) {
     if (isGlitchMode(floor)) return 0.0;
-    final int stageFloor = floor % 100; // 0–99 within the stage
+    final double stageFloor = floor % 100; // 0–99 within the stage
     final int blendStart = 100 - kBlendStartOffset; // = 70
     if (stageFloor < blendStart) return 0.0;
     return (stageFloor - blendStart) / kBlendStartOffset.toDouble();

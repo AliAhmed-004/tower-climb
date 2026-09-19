@@ -150,6 +150,7 @@ class TowerGame extends FlameGame
       position: Vector2(x, y),
       width: width,
       isCheckpoint: isCheckpoint,
+      floor: floor,
       floorImg: stageManager.floorImage(floor),
       floorImgNext: stageManager.floorImageNext(floor),
       blendAtSpawn: blend,
@@ -252,17 +253,6 @@ class TowerGame extends FlameGame
       _spawnNextPlatform();
     }
 
-    // Floor score
-    final int floor = _worldYToFloor(player.position.y);
-    if (floor > currentFloor) {
-      currentFloor = floor;
-      if (_checkpointCameraLocked && currentFloor >= _checkpointReleaseFloor) {
-        _checkpointCameraLocked = false;
-        _autoScrollY = camera.viewfinder.position.y;
-      }
-      notifyListeners();
-    }
-
     // Death
     if (player.position.y > killFloor.position.y) {
       _triggerGameOver();
@@ -285,9 +275,12 @@ class TowerGame extends FlameGame
     return max(0, ((size.y - 60 - worldY) / platformSpacing).floor());
   }
 
+  double get visualFloor =>
+      max(0.0, (size.y - 60 - player.position.y) / platformSpacing);
+
   // ── Collision callbacks ────────────────────────────────────────────────────
   void onPlayerLandedPlatform(GamePlatform platform) {
-    final int floor = _worldYToFloor(platform.position.y);
+    final int floor = platform.floor;
 
     if (gameState == GameState.playing) {
       // Checkpoint detection
@@ -314,6 +307,11 @@ class TowerGame extends FlameGame
       _lastLandedFloor = floor;
       if (floor > currentFloor) {
         currentFloor = floor;
+        if (_checkpointCameraLocked &&
+            currentFloor >= _checkpointReleaseFloor) {
+          _checkpointCameraLocked = false;
+          _autoScrollY = camera.viewfinder.position.y;
+        }
       }
       notifyListeners();
     }

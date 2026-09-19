@@ -9,6 +9,7 @@ class GamePlatform extends PositionComponent with HasGameReference<TowerGame> {
   static const double renderHeight = 20.0;
 
   final bool isCheckpoint;
+  final int floor;
 
   // Each platform captures its blend state at spawn time so it doesn't
   // change appearance mid-screen as the player climbs
@@ -20,6 +21,7 @@ class GamePlatform extends PositionComponent with HasGameReference<TowerGame> {
     required Vector2 position,
     required double width,
     this.isCheckpoint = false,
+    required this.floor,
     required ui.Image? floorImg,
     required ui.Image? floorImgNext,
     required double blendAtSpawn,

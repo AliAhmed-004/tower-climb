@@ -13,11 +13,12 @@ class GameBackground extends Component with HasGameReference<TowerGame> {
     final double camY = g.camera.viewfinder.position.y;
     final double w = g.size.x;
     final double h = g.size.y;
-    final int floor = g.currentFloor;
-    final double blend = g.stageManager.blendFactor(floor);
+    final double visualFloor = g.visualFloor;
+    final int stageFloor = visualFloor.floor();
+    final double blend = g.stageManager.blendFactor(visualFloor);
 
-    final ui.Image? bgCurrent = g.stageManager.bgImage(floor);
-    final ui.Image? bgNext = g.stageManager.bgImageNext(floor);
+    final ui.Image? bgCurrent = g.stageManager.bgImage(stageFloor);
+    final ui.Image? bgNext = g.stageManager.bgImageNext(stageFloor);
 
     // Fill fallback
     canvas.drawRect(
@@ -35,7 +36,7 @@ class GameBackground extends Component with HasGameReference<TowerGame> {
     }
 
     // Glitch mode flicker
-    if (g.stageManager.isGlitchMode(floor)) {
+    if (g.stageManager.isGlitchMode(stageFloor)) {
       g.stageManager.updateGlitch(0); // timer driven by tower_game
     }
   }
