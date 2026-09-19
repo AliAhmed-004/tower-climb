@@ -4,24 +4,22 @@ import 'main_menu_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-  runApp(const IcyTowerApp());
+  runApp(const TowerClimbApp());
 }
 
-class IcyTowerApp extends StatelessWidget {
-  const IcyTowerApp({super.key});
+class TowerClimbApp extends StatelessWidget {
+  const TowerClimbApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Tower Rush',
+      title: 'Tower Climb',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF00E5FF),
+          seedColor: const Color(0xFF8AB860),
           brightness: Brightness.dark,
         ),
         useMaterial3: true,

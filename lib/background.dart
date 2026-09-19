@@ -5,7 +5,7 @@ import 'package:flame/flame.dart';
 import 'package:flame/game.dart';
 import 'dart:ui' as ui;
 
-class GameBackground extends Component with HasGameRef<FlameGame> {
+class GameBackground extends Component with HasGameReference<FlameGame> {
   static ui.Image? _bgImage;
   static ui.Image? _wallImage;
 
@@ -16,9 +16,9 @@ class GameBackground extends Component with HasGameRef<FlameGame> {
 
   @override
   void render(Canvas canvas) {
-    final double camY = gameRef.camera.viewfinder.position.y;
-    final double w = gameRef.size.x;
-    final double h = gameRef.size.y;
+    final double camY = game.camera.viewfinder.position.y;
+    final double w = game.size.x;
+    final double h = game.size.y;
 
     // ── Background ─────────────────────────────────────────────────────────
     final ui.Image? bg = _bgImage;

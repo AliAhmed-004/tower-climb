@@ -58,11 +58,11 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   }
 
   Future<void> _loadAssets() async {
-    final bg = await Flame.images.load('background.png');
+    final bg   = await Flame.images.load('background.png');
     final char = await Flame.images.load('character.png');
     if (mounted) {
       setState(() {
-        _bgImage = bg;
+        _bgImage        = bg;
         _characterImage = char;
       });
       _fadeController.forward();
@@ -278,7 +278,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFCC9922).withOpacity(0.5),
+                              color: const Color(0xFFCC9922).withValues(alpha: 0.5),
                               blurRadius: 18,
                               spreadRadius: 2,
                             ),
@@ -305,13 +305,13 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                   const SizedBox(height: 28),
 
                   // Controls hint
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 28),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 28),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         _HintChip(label: '← left half'),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         _HintChip(label: 'right half →'),
                       ],
                     ),
@@ -348,13 +348,13 @@ class _BgPainter extends CustomPainter {
     final double imgH = image.height.toDouble();
 
     // Cover: scale so image fills screen, crop centre
-    final double scaleX = size.width / imgW;
+    final double scaleX = size.width  / imgW;
     final double scaleY = size.height / imgH;
-    final double scale = scaleX > scaleY ? scaleX : scaleY;
+    final double scale  = scaleX > scaleY ? scaleX : scaleY;
 
-    final double drawW = imgW * scale;
-    final double drawH = imgH * scale;
-    final double offsetX = (size.width - drawW) / 2;
+    final double drawW  = imgW * scale;
+    final double drawH  = imgH * scale;
+    final double offsetX = (size.width  - drawW) / 2;
     final double offsetY = (size.height - drawH) / 2;
 
     // Draw darkened background

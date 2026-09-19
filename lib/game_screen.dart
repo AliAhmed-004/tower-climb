@@ -55,14 +55,105 @@ class _GameScreenState extends State<GameScreen> {
       body: GameWidget(
         game: _game,
         overlayBuilderMap: {
-          'hud': (context, game) => _HudOverlay(game: game as TowerGame),
+          'hud':    (context, game) => _HudOverlay(game: game as TowerGame),
+          'launch': (context, game) => _LaunchPrompt(game: game as TowerGame),
         },
-        initialActiveOverlays: const ['hud'],
+        initialActiveOverlays: const ['hud', 'launch'],
       ),
     );
   }
 }
 
+// ── Launch prompt ─────────────────────────────────────────────────────────────
+class _LaunchPrompt extends StatefulWidget {
+  final TowerGame game;
+  const _LaunchPrompt({required this.game});
+
+  @override
+  State<_LaunchPrompt> createState() => _LaunchPromptState();
+}
+
+class _LaunchPromptState extends State<_LaunchPrompt>
+    with TickerProviderStateMixin {
+  late AnimationController _fadeOut;
+  late Animation<double>   _opacity;
+
+  // Pulsing prompt animation
+  late AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _fadeOut = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _opacity = Tween<double>(begin: 1.0, end: 0.0)
+        .animate(CurvedAnimation(parent: _fadeOut, curve: Curves.easeOut));
+
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+
+    widget.game.addListener(_onGameStateChange);
+  }
+
+  void _onGameStateChange() {
+    if (widget.game.gameState == GameState.playing && !_fadeOut.isAnimating) {
+      _fadeOut.forward().then((_) {
+        if (mounted) {
+          // Remove overlay once faded
+          widget.game.overlays.remove('launch');
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _fadeOut.dispose();
+    _pulse.dispose();
+    widget.game.removeListener(_onGameStateChange);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: IgnorePointer(
+        child: Align(
+          alignment: const Alignment(0, 0.55),
+          child: AnimatedBuilder(
+            animation: _pulse,
+            builder: (_, __) => Opacity(
+              opacity: 0.6 + _pulse.value * 0.4,
+              child: Text(
+                'tap anywhere to start',
+                style: GoogleFonts.pressStart2p(
+                  fontSize: 8,
+                  color: Colors.white,
+                  shadows: const [
+                    Shadow(
+                      color: Colors.black,
+                      offset: Offset(1, 1),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── HUD ───────────────────────────────────────────────────────────────────────
 class _HudOverlay extends StatefulWidget {
   final TowerGame game;
   const _HudOverlay({required this.game});
@@ -90,13 +181,15 @@ class _HudOverlayState extends State<_HudOverlay> {
 
   @override
   Widget build(BuildContext context) {
+    // Hide score until game starts
+    if (widget.game.gameState == GameState.waiting) return const SizedBox();
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Score
             Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,20 +198,19 @@ class _HudOverlayState extends State<_HudOverlay> {
                   '${widget.game.currentFloor}',
                   style: GoogleFonts.pressStart2p(
                     fontSize: 22,
-                    color: const Color(0xFF00E5FF),
+                    color: const Color(0xFFD4E8A0),
                   ),
                 ),
                 Text(
                   'floor',
                   style: GoogleFonts.pressStart2p(
                     fontSize: 7,
-                    color: const Color(0xFF555577),
+                    color: const Color(0xFF5A7A4A),
                   ),
                 ),
               ],
             ),
             const Spacer(),
-            // Combo
             if (widget.game.combo > 1)
               Column(
                 mainAxisSize: MainAxisSize.min,
@@ -147,6 +239,7 @@ class _HudOverlayState extends State<_HudOverlay> {
   }
 }
 
+// ── Game over dialog ──────────────────────────────────────────────────────────
 class _GameOverDialog extends StatelessWidget {
   final int score;
   final int best;
@@ -164,7 +257,7 @@ class _GameOverDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final isNewBest = score >= best;
     return Dialog(
-      backgroundColor: const Color(0xFF0F0F22),
+      backgroundColor: const Color(0xFF0F1A0A),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -192,7 +285,7 @@ class _GameOverDialog extends StatelessWidget {
               'Floor $score',
               style: GoogleFonts.pressStart2p(
                 fontSize: 22,
-                color: const Color(0xFF00E5FF),
+                color: const Color(0xFFD4E8A0),
               ),
             ),
             const SizedBox(height: 4),
@@ -200,7 +293,7 @@ class _GameOverDialog extends StatelessWidget {
               'Best: $best',
               style: GoogleFonts.pressStart2p(
                 fontSize: 8,
-                color: const Color(0xFF555577),
+                color: const Color(0xFF5A7A4A),
               ),
             ),
             const SizedBox(height: 32),
@@ -210,8 +303,8 @@ class _GameOverDialog extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: onRestart,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00E5FF),
-                  foregroundColor: const Color(0xFF0A0A1A),
+                  backgroundColor: const Color(0xFFD4A84B),
+                  foregroundColor: const Color(0xFF1A0E00),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
                   ),
@@ -220,7 +313,7 @@ class _GameOverDialog extends StatelessWidget {
                   'AGAIN',
                   style: GoogleFonts.pressStart2p(
                     fontSize: 14,
-                    color: const Color(0xFF0A0A1A),
+                    color: const Color(0xFF1A0E00),
                   ),
                 ),
               ),
@@ -232,7 +325,7 @@ class _GameOverDialog extends StatelessWidget {
               child: OutlinedButton(
                 onPressed: onMenu,
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF333355)),
+                  side: const BorderSide(color: Color(0xFF3A4A2A)),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
                   ),
@@ -241,7 +334,7 @@ class _GameOverDialog extends StatelessWidget {
                   'MENU',
                   style: GoogleFonts.pressStart2p(
                     fontSize: 14,
-                    color: const Color(0xFF555577),
+                    color: const Color(0xFF5A7A4A),
                   ),
                 ),
               ),

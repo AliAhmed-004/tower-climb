@@ -8,7 +8,7 @@ import 'tower_game.dart';
 import 'platform.dart';
 
 class Player extends PositionComponent
-    with HasGameRef<TowerGame>, CollisionCallbacks {
+    with HasGameReference<TowerGame>, CollisionCallbacks {
   // ── Asset ──────────────────────────────────────────────────────────────────
   // character.png is a single idle frame: 500x500, character at x=134-360, y=45-469
   // We cropped it to 246x444 (character_cropped.png) with 10px padding
@@ -42,7 +42,7 @@ class Player extends PositionComponent
   bool moveLeft = false;
   bool moveRight = false;
 
-  Vector2 _velocity = Vector2.zero();
+  final Vector2 _velocity = Vector2.zero();
   bool _onGround = false;
   bool _facingLeft = false;
 
@@ -82,7 +82,7 @@ class Player extends PositionComponent
     position += _velocity * dt;
 
     // Horizontal wrap
-    final double sw = gameRef.size.x;
+    final double sw = game.size.x;
     if (position.x + playerWidth < 0) position.x = sw;
     if (position.x > sw) position.x = -playerWidth;
 
@@ -91,6 +91,32 @@ class Player extends PositionComponent
     // Idle bob
     _bobTimer += dt;
     _bobOffset = _onGround ? (sin(_bobTimer * 3.0) * 1.5) : 0;
+  }
+
+  /// Called by TowerGame during the waiting state.
+  /// Moves the player horizontally on the ground with no gravity or bounce.
+  void groundSlide(double dt, {required bool braking}) {
+    if (!braking) {
+      if (moveLeft) {
+        _velocity.x -= moveSpeed * dt * 6;
+        _facingLeft = true;
+      }
+      if (moveRight) {
+        _velocity.x += moveSpeed * dt * 6;
+        _facingLeft = false;
+      }
+    }
+
+    // Always apply friction; braking just means no new input is added above
+    _velocity.x *= pow(friction, dt * 60).toDouble();
+    _velocity.x = _velocity.x.clamp(-maxHorzSpeed, maxHorzSpeed);
+
+    // Only horizontal movement — no gravity, no vertical velocity
+    position.x += _velocity.x * dt;
+
+    // Idle bob while standing
+    _bobTimer += dt;
+    _bobOffset = sin(_bobTimer * 3.0) * 1.5;
   }
 
   // ── Collision ──────────────────────────────────────────────────────────────
@@ -111,7 +137,7 @@ class Player extends PositionComponent
     _onGround = true;
     _velocity.y = baseBounceVelocity - _velocity.x.abs() * speedBonusFactor;
 
-    gameRef.onPlayerLandedPlatform(platform);
+    game.onPlayerLandedPlatform(platform);
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -136,12 +162,12 @@ class Player extends PositionComponent
       canvas.save();
       canvas.translate(playerWidth, 0);
       canvas.scale(-1, 1);
-      canvas.drawImageRect(
-          img, src, dst, Paint()..filterQuality = ui.FilterQuality.medium);
+      final paint = Paint()..filterQuality = ui.FilterQuality.medium;
+      canvas.drawImageRect(img, src, dst, paint);
       canvas.restore();
     } else {
-      canvas.drawImageRect(
-          img, src, dst, Paint()..filterQuality = ui.FilterQuality.medium);
+      final paint = Paint()..filterQuality = ui.FilterQuality.medium;
+      canvas.drawImageRect(img, src, dst, paint);
     }
   }
 }
