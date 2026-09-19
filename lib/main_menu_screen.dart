@@ -339,7 +339,7 @@ class _CharacterWidget extends StatelessWidget {
   const _CharacterWidget({required this.image});
   @override
   Widget build(BuildContext context) =>
-      CustomPaint(size: const Size(80, 80), painter: _CharacterPainter(image));
+      CustomPaint(size: const Size(80, 150), painter: _CharacterPainter(image));
 }
 
 class _CharacterPainter extends CustomPainter {
