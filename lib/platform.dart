@@ -30,6 +30,7 @@ class GamePlatform extends PositionComponent with HasGameReference<TowerGame> {
         super(
           position: position,
           size: Vector2(width, collisionHeight),
+          priority: 0,
         );
 
   @override

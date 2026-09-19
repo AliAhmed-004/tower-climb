@@ -9,6 +9,8 @@ import 'platform.dart';
 
 class Player extends PositionComponent
     with HasGameReference<TowerGame>, CollisionCallbacks {
+  Player() : super(priority: 10);
+
   // ── Asset ──────────────────────────────────────────────────────────────────
   static ui.Image? _sheet;
   static Future<void> preload() async {
@@ -17,13 +19,13 @@ class Player extends PositionComponent
 
   // ── Display size ───────────────────────────────────────────────────────────
   // character.png is the tight-cropped idle frame
-  static const double playerWidth = 40.0;
+  static const double playerWidth = 28.0;
 
   // Source rect — full image is the character, no wasted padding
   static const double _srcX = 0;
   static const double _srcY = 0;
-  static const double _srcW = 500.0; // update if image differs
-  static const double _srcH = 500.0;
+  static const double _srcW = 236.0;
+  static const double _srcH = 426.0;
 
   // Rendered height maintains 1:1 aspect of the source
   static const double _charRenderH =
@@ -47,9 +49,6 @@ class Player extends PositionComponent
 
   final Vector2 _velocity = Vector2.zero();
   bool _facingLeft = false;
-
-  double _bobTimer = 0;
-  double _bobOffset = 0;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
   @override
@@ -84,9 +83,6 @@ class Player extends PositionComponent
 
     // Solid walls — clamp position and kill horizontal velocity on impact
     game.clampPlayerToWalls();
-
-    _bobTimer += dt;
-    _bobOffset = sin(_bobTimer * 3.0) * 1.0;
   }
 
   /// Horizontal-only movement for waiting / checkpoint states (no gravity/bounce).
@@ -104,9 +100,6 @@ class Player extends PositionComponent
     _velocity.x *= pow(friction, dt * 60).toDouble();
     _velocity.x = _velocity.x.clamp(-maxHorzSpeed, maxHorzSpeed);
     position.x += _velocity.x * dt;
-
-    _bobTimer += dt;
-    _bobOffset = sin(_bobTimer * 3.0) * 1.0;
   }
 
   /// Zero horizontal velocity — called on wall impact.
@@ -150,14 +143,14 @@ class Player extends PositionComponent
     final ui.Image? img = _sheet;
     if (img == null) {
       canvas.drawRect(
-        Rect.fromLTWH(0, _bobOffset, playerWidth, _charRenderH),
+        Rect.fromLTWH(0, 0, playerWidth, _charRenderH),
         Paint()..color = const ui.Color(0xFF5C8A3C),
       );
       return;
     }
 
     final Rect src = const Rect.fromLTWH(_srcX, _srcY, _srcW, _srcH);
-    final Rect dst = Rect.fromLTWH(0, _bobOffset, playerWidth, _charRenderH);
+    final Rect dst = Rect.fromLTWH(0, 0, playerWidth, _charRenderH);
     final paint = Paint()..filterQuality = ui.FilterQuality.medium;
 
     if (_facingLeft) {

@@ -5,6 +5,8 @@ import 'dart:ui' as ui;
 import 'tower_game.dart';
 
 class GameBackground extends Component with HasGameReference<TowerGame> {
+  GameBackground() : super(priority: -100);
+
   @override
   void render(Canvas canvas) {
     final TowerGame g = game;
