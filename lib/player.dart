@@ -64,6 +64,8 @@ class Player extends PositionComponent
   // ── Update ─────────────────────────────────────────────────────────────────
   @override
   void update(double dt) {
+    if (game.gameState == GameState.checkpoint) return;
+
     if (moveLeft) {
       _velocity.x -= moveSpeed * dt * 6;
       _facingLeft = true;
@@ -104,6 +106,12 @@ class Player extends PositionComponent
 
   /// Zero horizontal velocity — called on wall impact.
   void zeroVelocityX() => _velocity.x = 0;
+
+  void stopVerticalMotion() => _velocity.y = 0;
+
+  void resumeFromCheckpoint() {
+    _velocity.y = baseBounceVelocity - _velocity.x.abs() * speedBonusFactor;
+  }
 
   // ── Collision ──────────────────────────────────────────────────────────────
   @override

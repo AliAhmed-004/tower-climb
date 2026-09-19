@@ -49,6 +49,10 @@ class TowerGame extends FlameGame
   // Checkpoint: camera resumes after player lands ABOVE the checkpoint floor
   bool _checkpointLanded = false; // player has bounced off checkpoint
   int _checkpointFloor = 0;
+  bool _checkpointCameraLocked = false;
+  bool _checkpointCameraSettled = false;
+  double _checkpointCameraTargetY = 0;
+  int _checkpointReleaseFloor = 0;
 
   // Glitch mode timer (drives background flicker)
   double _glitchTimer = 0;
@@ -185,13 +189,20 @@ class TowerGame extends FlameGame
     }
 
     if (gameState == GameState.checkpoint) {
-      // Frozen: player stands on checkpoint, camera doesn't move
+      // Frozen: player stands on checkpoint while camera settles
       // Input is still live so player can move left/right on the checkpoint floor
       player.moveLeft = _leftDown;
       player.moveRight = _rightDown;
 
       player.groundSlide(dt, braking: !_leftDown && !_rightDown);
       _clampPlayerToWalls();
+
+      final double currentCamY = camera.viewfinder.position.y;
+      final double nextCamY = currentCamY +
+          (_checkpointCameraTargetY - currentCamY) * min(1.0, 5 * dt);
+      camera.viewfinder.position = Vector2(0, nextCamY);
+      _checkpointCameraSettled =
+          (nextCamY - _checkpointCameraTargetY).abs() < 0.5;
 
       killFloor.position.y =
           camera.viewfinder.position.y + size.y + killFloorGrace;
@@ -203,21 +214,23 @@ class TowerGame extends FlameGame
     player.moveLeft = _leftDown;
     player.moveRight = _rightDown;
 
-    // Scroll speed comes from stage manager — fixed per stage
-    final double scrollSpeed = stageManager.scrollSpeed(currentFloor);
-    _autoScrollY -= scrollSpeed * dt;
+    if (!_checkpointCameraLocked) {
+      // Scroll speed comes from stage manager — fixed per stage
+      final double scrollSpeed = stageManager.scrollSpeed(currentFloor);
+      _autoScrollY -= scrollSpeed * dt;
 
-    final double playerFollowY = player.position.y - size.y * 0.4;
-    _cameraTargetY = min(playerFollowY, _autoScrollY);
+      final double playerFollowY = player.position.y - size.y * 0.4;
+      _cameraTargetY = min(playerFollowY, _autoScrollY);
 
-    final double currentCamY = camera.viewfinder.position.y;
-    camera.viewfinder.position = Vector2(
-      0,
-      currentCamY + (_cameraTargetY - currentCamY) * 8 * dt,
-    );
+      final double currentCamY = camera.viewfinder.position.y;
+      camera.viewfinder.position = Vector2(
+        0,
+        currentCamY + (_cameraTargetY - currentCamY) * 8 * dt,
+      );
 
-    if (camera.viewfinder.position.y < _autoScrollY) {
-      _autoScrollY = camera.viewfinder.position.y;
+      if (camera.viewfinder.position.y < _autoScrollY) {
+        _autoScrollY = camera.viewfinder.position.y;
+      }
     }
 
     killFloor.position.y =
@@ -243,6 +256,10 @@ class TowerGame extends FlameGame
     final int floor = _worldYToFloor(player.position.y);
     if (floor > currentFloor) {
       currentFloor = floor;
+      if (_checkpointCameraLocked && currentFloor >= _checkpointReleaseFloor) {
+        _checkpointCameraLocked = false;
+        _autoScrollY = camera.viewfinder.position.y;
+      }
       notifyListeners();
     }
 
@@ -276,7 +293,13 @@ class TowerGame extends FlameGame
       // Checkpoint detection
       if (platform.isCheckpoint && floor != _checkpointFloor) {
         _checkpointFloor = floor;
-        _checkpointLanded = false;
+        _checkpointReleaseFloor = floor + 4;
+        _checkpointCameraLocked = true;
+        _checkpointCameraSettled = false;
+        _checkpointCameraTargetY =
+            platform.position.y - size.y + GamePlatform.renderHeight;
+        player.stopVerticalMotion();
+        currentFloor = floor;
         gameState = GameState.checkpoint;
         notifyListeners();
         return;
@@ -305,7 +328,9 @@ class TowerGame extends FlameGame
 
     if (gameState == GameState.waiting)
       _launch();
-    else if (gameState == GameState.checkpoint) _resumeFromCheckpoint();
+    else if (gameState == GameState.checkpoint && _checkpointCameraSettled) {
+      _resumeFromCheckpoint();
+    }
   }
 
   @override
@@ -344,9 +369,8 @@ class TowerGame extends FlameGame
   }
 
   void _resumeFromCheckpoint() {
-    // Player will bounce on next update cycle — physics re-enabled
+    player.resumeFromCheckpoint();
     gameState = GameState.playing;
-    _autoScrollY = camera.viewfinder.position.y;
     notifyListeners();
   }
 
