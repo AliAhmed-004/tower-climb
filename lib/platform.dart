@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'dart:ui';
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
@@ -7,7 +6,7 @@ import 'tower_game.dart';
 
 class GamePlatform extends PositionComponent with HasGameReference<TowerGame> {
   static const double collisionHeight = 20.0;
-  static const double renderHeight = 32.0;
+  static const double renderHeight = 20.0;
 
   final bool isCheckpoint;
 
