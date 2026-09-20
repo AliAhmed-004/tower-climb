@@ -35,13 +35,14 @@ class _GameScreenState extends State<GameScreen> {
           });
         },
         onMenu: () {
-          Navigator.of(context).pushReplacement(
+          Navigator.of(context).pushAndRemoveUntil(
             PageRouteBuilder(
               pageBuilder: (_, __, ___) => const MainMenuScreen(),
               transitionsBuilder: (_, anim, __, child) =>
                   FadeTransition(opacity: anim, child: child),
               transitionDuration: const Duration(milliseconds: 300),
             ),
+            (route) => false,
           );
         },
       ),
@@ -55,9 +56,10 @@ class _GameScreenState extends State<GameScreen> {
       body: GameWidget(
         game: _game,
         overlayBuilderMap: {
-          'hud':        (context, game) => _HudOverlay(game: game as TowerGame),
-          'launch':     (context, game) => _LaunchPrompt(game: game as TowerGame),
-          'checkpoint': (context, game) => _CheckpointPrompt(game: game as TowerGame),
+          'hud': (context, game) => _HudOverlay(game: game as TowerGame),
+          'launch': (context, game) => _LaunchPrompt(game: game as TowerGame),
+          'checkpoint': (context, game) =>
+              _CheckpointPrompt(game: game as TowerGame),
         },
         initialActiveOverlays: const ['hud', 'launch'],
       ),
@@ -77,7 +79,7 @@ class _LaunchPrompt extends StatefulWidget {
 class _LaunchPromptState extends State<_LaunchPrompt>
     with TickerProviderStateMixin {
   late AnimationController _fadeOut;
-  late Animation<double>   _opacity;
+  late Animation<double> _opacity;
 
   // Pulsing prompt animation
   late AnimationController _pulse;
@@ -304,7 +306,10 @@ class _CheckpointPromptState extends State<_CheckpointPrompt>
                     fontSize: 7,
                     color: Colors.white,
                     shadows: const [
-                      Shadow(color: Colors.black, offset: Offset(1, 1), blurRadius: 3),
+                      Shadow(
+                          color: Colors.black,
+                          offset: Offset(1, 1),
+                          blurRadius: 3),
                     ],
                   ),
                 ),
