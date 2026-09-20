@@ -10,7 +10,7 @@ import 'background.dart';
 import 'kill_floor.dart';
 import 'stage_manager.dart';
 
-enum GameState { waiting, playing, checkpoint, over }
+enum GameState { waiting, playing, checkpoint, paused, over }
 
 class TowerGame extends FlameGame
     with HasCollisionDetection, MultiTouchDragDetector, ChangeNotifier {
@@ -163,7 +163,7 @@ class TowerGame extends FlameGame
   // ── Update ─────────────────────────────────────────────────────────────────
   @override
   void update(double dt) {
-    if (gameState == GameState.over) return;
+    if (gameState == GameState.over || gameState == GameState.paused) return;
     super.update(dt);
 
     // Glitch mode background flicker
@@ -374,6 +374,18 @@ class TowerGame extends FlameGame
 
   void _resumeFromCheckpoint() {
     player.resumeFromCheckpoint();
+    gameState = GameState.playing;
+    notifyListeners();
+  }
+
+  void pauseGame() {
+    if (gameState != GameState.playing) return;
+    gameState = GameState.paused;
+    notifyListeners();
+  }
+
+  void resumeGame() {
+    if (gameState != GameState.paused) return;
     gameState = GameState.playing;
     notifyListeners();
   }

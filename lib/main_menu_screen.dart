@@ -6,7 +6,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flame/flame.dart';
 import 'audio_manager.dart';
 import 'game_screen.dart';
+import 'settings_screen.dart';
 import 'stage_manager.dart';
+
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
 
@@ -18,6 +20,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
     with TickerProviderStateMixin {
   ui.Image? _bgImage;
   ui.Image? _characterImage;
+  late String _biome;
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnim;
@@ -58,6 +61,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   Future<void> _loadAssets() async {
     // Pick a random stage background
     final stage = kStages[Random().nextInt(kStages.length)];
+    _biome = stage.name;
     final bg = await Flame.images.load(stage.bgAsset);
     final char = await Flame.images.load('character.png');
     if (mounted) {
@@ -86,6 +90,15 @@ class _MainMenuScreenState extends State<MainMenuScreen>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 500),
       ),
+    );
+  }
+
+  void _openSettings() {
+    GameAudioManager.instance.playButtonClick();
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (_) => SettingsScreen(biome: _biome),
     );
   }
 
@@ -212,6 +225,30 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                             fontSize: 8,
                             color: const Color(0xFF8A9A7A),
                             letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        GestureDetector(
+                          onTap: _openSettings,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0x55000000),
+                              border: Border.all(
+                                color: const Color(0xFF8A9A7A),
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'SETTINGS',
+                              style: GoogleFonts.pressStart2p(
+                                fontSize: 10,
+                                color: const Color(0xFFD4E8A0),
+                              ),
+                            ),
                           ),
                         ),
                       ],

@@ -1,4 +1,5 @@
 import 'package:flame_audio/flame_audio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BiomeAudioProfile {
   final String jumpAsset;
@@ -18,7 +19,9 @@ class GameAudioManager {
   GameAudioManager._();
   static final GameAudioManager instance = GameAudioManager._();
 
+  static const _masterVolumeKey = 'master_volume';
   double masterVolume = 1.0;
+  SharedPreferences? _preferences;
 
   final Map<String, BiomeAudioProfile> _biomes = {
     'mossy': const BiomeAudioProfile(
@@ -60,11 +63,18 @@ class GameAudioManager {
   };
 
   Future<void> init() async {
+    _preferences = await SharedPreferences.getInstance();
+    masterVolume = _preferences?.getDouble(_masterVolumeKey) ?? 1.0;
     await FlameAudio.audioCache.loadAll([
       'button_click.wav',
       'jump.wav',
       'checkpoint.wav',
     ]);
+  }
+
+  Future<void> setMasterVolume(double value) async {
+    masterVolume = value.clamp(0.0, 1.0);
+    await _preferences?.setDouble(_masterVolumeKey, masterVolume);
   }
 
   Future<void> playSfx(
@@ -87,7 +97,8 @@ class GameAudioManager {
       playSfx('checkpoint.wav', volume: masterVolume);
 
   Future<void> playJumpForBiome(String biome) {
-    final profile = _biomes[biome] ?? const BiomeAudioProfile(jumpAsset: 'jump.wav');
+    final profile =
+        _biomes[biome] ?? const BiomeAudioProfile(jumpAsset: 'jump.wav');
     return playSfx(
       profile.jumpAsset,
       volume: masterVolume * profile.jumpVolumeScale,

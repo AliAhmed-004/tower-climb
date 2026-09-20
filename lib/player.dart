@@ -66,7 +66,8 @@ class Player extends PositionComponent
   @override
   void update(double dt) {
     if (game.gameState == GameState.waiting ||
-        game.gameState == GameState.checkpoint) {
+        game.gameState == GameState.checkpoint ||
+        game.gameState == GameState.paused) {
       return;
     }
 

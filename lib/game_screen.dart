@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'tower_game.dart';
+import 'audio_manager.dart';
 import 'main_menu_screen.dart';
+import 'menu_theme.dart';
+import 'settings_screen.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -60,6 +63,7 @@ class _GameScreenState extends State<GameScreen> {
           'launch': (context, game) => _LaunchPrompt(game: game as TowerGame),
           'checkpoint': (context, game) =>
               _CheckpointPrompt(game: game as TowerGame),
+          'pause': (context, game) => _PauseOverlay(game: game as TowerGame),
         },
         initialActiveOverlays: const ['hud', 'launch'],
       ),
@@ -221,6 +225,16 @@ class _HudOverlayState extends State<_HudOverlay> {
               ],
             ),
             const Spacer(),
+            if (widget.game.gameState == GameState.playing)
+              IconButton(
+                onPressed: () {
+                  GameAudioManager.instance.playButtonClick();
+                  widget.game.pauseGame();
+                  widget.game.overlays.add('pause');
+                },
+                icon: const Icon(Icons.pause),
+                color: const Color(0xFFD4E8A0),
+              ),
             if (widget.game.combo > 1)
               Column(
                 mainAxisSize: MainAxisSize.min,
@@ -243,6 +257,132 @@ class _HudOverlayState extends State<_HudOverlay> {
                 ],
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PauseOverlay extends StatelessWidget {
+  final TowerGame game;
+  const _PauseOverlay({required this.game});
+
+  String get _biome => game.stageManager.currentStage(game.currentFloor).name;
+
+  void _openSettings(BuildContext context) {
+    GameAudioManager.instance.playButtonClick();
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (_) => SettingsScreen(biome: _biome),
+    );
+  }
+
+  void _resume() {
+    GameAudioManager.instance.playButtonClick();
+    game.overlays.remove('pause');
+    game.resumeGame();
+  }
+
+  void _openMenu(BuildContext context) {
+    GameAudioManager.instance.playButtonClick();
+    Navigator.of(context).pushAndRemoveUntil(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const MainMenuScreen(),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+      (route) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = BiomeMenuTheme.forBiome(_biome);
+    return ColoredBox(
+      color: Colors.black54,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 340),
+          child: Container(
+            margin: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: theme.panel,
+              border: Border.all(color: theme.border, width: 2),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'PAUSED',
+                  style: GoogleFonts.pressStart2p(
+                    fontSize: 18,
+                    color: theme.accent,
+                  ),
+                ),
+                const SizedBox(height: 26),
+                _PauseButton(
+                  label: 'RESUME',
+                  color: theme.primary,
+                  textColor: theme.primaryText,
+                  onPressed: _resume,
+                ),
+                const SizedBox(height: 12),
+                _PauseButton(
+                  label: 'SETTINGS',
+                  color: theme.border,
+                  textColor: theme.accent,
+                  onPressed: () => _openSettings(context),
+                ),
+                const SizedBox(height: 12),
+                _PauseButton(
+                  label: 'MAIN MENU',
+                  color: theme.border,
+                  textColor: theme.muted,
+                  onPressed: () => _openMenu(context),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PauseButton extends StatelessWidget {
+  final String label;
+  final Color color;
+  final Color textColor;
+  final VoidCallback onPressed;
+
+  const _PauseButton({
+    required this.label,
+    required this.color,
+    required this.textColor,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: textColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.pressStart2p(fontSize: 10, color: textColor),
         ),
       ),
     );
