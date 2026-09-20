@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   flame: ^1.18.0
+  flame_audio: ^2.1.5
   google_fonts: ^6.1.0
 
 dev_dependencies:
@@ -20,6 +21,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/audio/
     - assets/images/character.png
     - assets/images/mossy/
     - assets/images/ancient_civilization/

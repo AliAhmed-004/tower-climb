@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flame/flame.dart';
+import 'audio_manager.dart';
 import 'game_screen.dart';
 import 'stage_manager.dart';
-
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
 
@@ -78,6 +78,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   }
 
   void _startGame() {
+    GameAudioManager.instance.playButtonClick();
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => const GameScreen(),

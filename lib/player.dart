@@ -4,6 +4,7 @@ import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flame/flame.dart';
 import 'dart:ui' as ui;
+import 'audio_manager.dart';
 import 'tower_game.dart';
 import 'platform.dart';
 
@@ -64,7 +65,10 @@ class Player extends PositionComponent
   // ── Update ─────────────────────────────────────────────────────────────────
   @override
   void update(double dt) {
-    if (game.gameState == GameState.checkpoint) return;
+    if (game.gameState == GameState.waiting ||
+        game.gameState == GameState.checkpoint) {
+      return;
+    }
 
     if (moveLeft) {
       _velocity.x -= moveSpeed * dt * 6;
@@ -113,6 +117,10 @@ class Player extends PositionComponent
     _velocity.y = baseBounceVelocity - _velocity.x.abs() * speedBonusFactor;
   }
 
+  void launchFromStart() {
+    _velocity.y = baseBounceVelocity;
+  }
+
   // ── Collision ──────────────────────────────────────────────────────────────
   @override
   void onCollisionStart(
@@ -140,6 +148,10 @@ class Player extends PositionComponent
 
     // Normal auto-bounce: height scales with horizontal speed
     _velocity.y = baseBounceVelocity - _velocity.x.abs() * speedBonusFactor;
+    if (game.gameState == GameState.playing) {
+      final biome = game.stageManager.currentStage(platform.floor).name;
+      GameAudioManager.instance.playJumpForBiome(biome);
+    }
     game.onPlayerLandedPlatform(platform);
   }
 

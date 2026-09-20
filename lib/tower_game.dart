@@ -3,6 +3,7 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'audio_manager.dart';
 import 'player.dart';
 import 'platform.dart';
 import 'background.dart';
@@ -293,6 +294,7 @@ class TowerGame extends FlameGame
             platform.position.y - size.y + GamePlatform.renderHeight;
         player.stopVerticalMotion();
         currentFloor = floor;
+        GameAudioManager.instance.playCheckpoint();
         gameState = GameState.checkpoint;
         notifyListeners();
         return;
@@ -361,6 +363,10 @@ class TowerGame extends FlameGame
 
   // ── Launch / resume ────────────────────────────────────────────────────────
   void _launch() {
+    player.launchFromStart();
+    GameAudioManager.instance.playJumpForBiome(
+      stageManager.currentStage(currentFloor).name,
+    );
     gameState = GameState.playing;
     _autoScrollY = camera.viewfinder.position.y;
     notifyListeners();
