@@ -103,14 +103,27 @@ class GameAudioManager {
 
   final BiomeBgm biomeBgm = BiomeBgm();
 
+  // Pooled sfx players. FlameAudio.play() leaks a native player per call
+  // (audioplayers never disposes it), which piles up over a run. Pools reuse a
+  // fixed set of players instead.
+  AudioPool? _jumpPool;
+  AudioPool? _buttonPool;
+  AudioPool? _checkpointPool;
+
   Future<void> init() async {
     _preferences = await SharedPreferences.getInstance();
     masterVolume = _preferences?.getDouble(_masterVolumeKey) ?? 1.0;
-    await FlameAudio.audioCache.loadAll([
-      'button_click.wav',
-      'jump.wav',
-      'checkpoint.wav',
-    ]);
+    _jumpPool = await _makePool('jump.wav', 4); // overlaps on fast bounces
+    _buttonPool = await _makePool('button_click.wav', 2);
+    _checkpointPool = await _makePool('checkpoint.wav', 2);
+  }
+
+  Future<AudioPool?> _makePool(String file, int maxPlayers) async {
+    try {
+      return await FlameAudio.createPool(file, minPlayers: 1, maxPlayers: maxPlayers);
+    } catch (_) {
+      return null; // missing asset tolerated
+    }
   }
 
   Future<void> setMasterVolume(double value) async {
@@ -119,26 +132,15 @@ class GameAudioManager {
     // Background volume follows on the next frame's biomeBgm.update().
   }
 
-  Future<void> playSfx(
-    String assetName, {
-    double? volume,
-  }) async {
-    final safeVolume = (volume ?? masterVolume).clamp(0.0, 1.0);
-
-    try {
-      await FlameAudio.play(assetName, volume: safeVolume);
-    } catch (_) {
-      // Missing asset is tolerated until biome-specific sounds are added.
-    }
+  Future<void> _play(AudioPool? pool, double mix) async {
+    if (pool == null) return; // missing asset
+    await pool.start(volume: (masterVolume * mix).clamp(0.0, 1.0));
   }
 
-  Future<void> playButtonClick() =>
-      playSfx('button_click.wav', volume: masterVolume * AudioMix.button);
+  Future<void> playButtonClick() => _play(_buttonPool, AudioMix.button);
 
-  Future<void> playCheckpoint() =>
-      playSfx('checkpoint.wav', volume: masterVolume * AudioMix.checkpoint);
+  Future<void> playCheckpoint() => _play(_checkpointPool, AudioMix.checkpoint);
 
   // Jump is shared across biomes for now; add per-biome overrides here later.
-  Future<void> playJumpForBiome(String biome) =>
-      playSfx('jump.wav', volume: masterVolume * AudioMix.jump);
+  Future<void> playJumpForBiome(String biome) => _play(_jumpPool, AudioMix.jump);
 }
