@@ -166,6 +166,10 @@ class TowerGame extends FlameGame
     if (gameState == GameState.over || gameState == GameState.paused) return;
     super.update(dt);
 
+    // Background music crossfades with the biome (same blendFactor as visuals).
+    GameAudioManager.instance.biomeBgm
+        .update(stageManager, currentFloor, GameAudioManager.instance.masterVolume);
+
     // Glitch mode background flicker
     if (stageManager.isGlitchMode(currentFloor)) {
       _glitchTimer += dt;
@@ -381,12 +385,14 @@ class TowerGame extends FlameGame
   void pauseGame() {
     if (gameState != GameState.playing) return;
     gameState = GameState.paused;
+    GameAudioManager.instance.biomeBgm.pause();
     notifyListeners();
   }
 
   void resumeGame() {
     if (gameState != GameState.paused) return;
     gameState = GameState.playing;
+    GameAudioManager.instance.biomeBgm.resume();
     notifyListeners();
   }
 
@@ -394,7 +400,14 @@ class TowerGame extends FlameGame
   void _triggerGameOver() {
     if (gameState == GameState.over) return;
     gameState = GameState.over;
+    GameAudioManager.instance.biomeBgm.stopAll();
     if (currentFloor > _bestFloor) _bestFloor = currentFloor;
     onGameOver(currentFloor, _bestFloor);
+  }
+
+  @override
+  void onRemove() {
+    GameAudioManager.instance.biomeBgm.stopAll();
+    super.onRemove();
   }
 }

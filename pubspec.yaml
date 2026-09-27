@@ -23,6 +23,13 @@ flutter:
   uses-material-design: true
   assets:
     - assets/audio/
+    # Per-biome bgm. Flutter does not recurse into assets/audio/, and listing a
+    # dir would bundle the raw source files too — so name each mp3.
+    # New biome: drop <name>/<name>_bgm.mp3 and add one line here.
+    - assets/audio/mossy/mossy_bgm.mp3
+    - assets/audio/ancient_civilization/ancient_civilization_bgm.mp3
+    - assets/audio/desert/desert_bgm.mp3
+    - assets/audio/snowy/snowy_bgm.mp3
     - assets/images/character.png
     - assets/images/mossy/
     - assets/images/ancient_civilization/
