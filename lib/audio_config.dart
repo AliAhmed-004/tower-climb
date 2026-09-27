@@ -15,5 +15,5 @@ class AudioMix {
   static const double button = 0.3;
 
   /// Jump — fires constantly, so quietest.
-  static const double jump = 0.2;
+  static const double jump = 0.02;
 }
