@@ -58,10 +58,23 @@ class _MainMenuScreenState extends State<MainMenuScreen>
     _loadAssets();
   }
 
+  // Remembered across menu shows so the same biome doesn't repeat back-to-back.
+  static int? _lastStageIndex;
+
   Future<void> _loadAssets() async {
-    // Pick a random stage background
-    final stage = kStages[Random().nextInt(kStages.length)];
+    // Pick a random stage, but not the one shown last time.
+    int index = Random().nextInt(kStages.length);
+    if (kStages.length > 1 && index == _lastStageIndex) {
+      index = (index + 1) % kStages.length;
+    }
+    _lastStageIndex = index;
+    final stage = kStages[index];
     _biome = stage.name;
+
+    // Background music matching the shown biome.
+    GameAudioManager.instance.biomeBgm
+        .playStatic(_biome, GameAudioManager.instance.masterVolume);
+
     final bg = await Flame.images.load(stage.bgAsset);
     final char = await Flame.images.load('character.png');
     if (mounted) {

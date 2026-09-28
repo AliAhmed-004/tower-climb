@@ -42,18 +42,16 @@ class BiomeBgm {
     }
   }
 
-  /// Call every frame with the live floor and master volume.
-  void update(StageManager stages, int floor, double master) {
-    if (_paused) return;
+  // Current mix (biome -> 0..1) so master-volume changes can re-scale live.
+  final Map<String, double> _mix = {};
 
-    final String current = stages.currentStage(floor).name;
-    final double blend = stages.blendFactor(floor); // 0 until floor 70
-    final String? next = stages.nextStage(floor)?.name;
-
-    final Map<String, double> want = {current: 1.0 - blend};
-    if (blend > 0 && next != null) want[next] = blend;
-
+  /// Bring live players in line with [want]: load missing, set volumes, drop
+  /// any biome no longer wanted.
+  void _reconcile(Map<String, double> want, double master) {
     want.keys.forEach(_ensure);
+    _mix
+      ..clear()
+      ..addAll(want);
 
     for (final entry in _players.entries.toList()) {
       final double? mix = want[entry.key];
@@ -64,6 +62,36 @@ class BiomeBgm {
       } else {
         entry.value.setVolume((master * AudioMix.bgm * mix).clamp(0.0, 1.0));
       }
+    }
+  }
+
+  /// Call every frame with the live floor and master volume (game crossfade).
+  void update(StageManager stages, int floor, double master) {
+    if (_paused) return;
+
+    final String current = stages.currentStage(floor).name;
+    final double blend = stages.blendFactor(floor); // 0 until floor 70
+    final String? next = stages.nextStage(floor)?.name;
+
+    final Map<String, double> want = {current: 1.0 - blend};
+    if (blend > 0 && next != null) want[next] = blend;
+
+    _reconcile(want, master);
+  }
+
+  /// Play one biome at full, stopping any others. For the main menu, where
+  /// there is no per-frame update loop.
+  Future<void> playStatic(String biome, double master) async {
+    _paused = false;
+    await _ensure(biome);
+    _reconcile({biome: 1.0}, master);
+  }
+
+  /// Re-scale playing tracks to a new master volume (e.g. settings slider).
+  void applyMaster(double master) {
+    for (final entry in _players.entries) {
+      final double mix = _mix[entry.key] ?? 1.0;
+      entry.value.setVolume((master * AudioMix.bgm * mix).clamp(0.0, 1.0));
     }
   }
 
@@ -87,6 +115,7 @@ class BiomeBgm {
       await p.dispose();
     }
     _players.clear();
+    _mix.clear();
     _loading.clear();
     _missing.clear();
     _paused = false;
@@ -129,7 +158,9 @@ class GameAudioManager {
   Future<void> setMasterVolume(double value) async {
     masterVolume = value.clamp(0.0, 1.0);
     await _preferences?.setDouble(_masterVolumeKey, masterVolume);
-    // Background volume follows on the next frame's biomeBgm.update().
+    // In-game the next update() frame handles it; on the menu there is no
+    // update loop, so push the new volume to playing tracks now.
+    biomeBgm.applyMaster(masterVolume);
   }
 
   Future<void> _play(AudioPool? pool, double mix) async {

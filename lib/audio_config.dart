@@ -6,14 +6,14 @@ class AudioMix {
   AudioMix._();
 
   /// Background music — the bed everything else sits on.
-  static const double bgm = 0.8;
+  static const double bgm = 0.65;
 
   /// Checkpoint chime — a rare event, mid level.
   static const double checkpoint = 0.4;
 
   /// UI button click — quiet.
-  static const double button = 0.3;
+  static const double button = 0.4;
 
   /// Jump — fires constantly, so quietest.
-  static const double jump = 0.02;
+  static const double jump = 0.12;
 }
