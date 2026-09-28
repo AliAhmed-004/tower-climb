@@ -80,21 +80,6 @@ class GameBackground extends Component with HasGameReference<TowerGame> {
         Rect.fromLTWH(0, tileY, w, tileH),
         paint,
       );
-
-      // Seam cover: dark gradient over bottom 12% of each tile
-      final double fadeH = tileH * 0.12;
-      final ui.Gradient seamGrad = ui.Gradient.linear(
-        Offset(0, tileY + tileH - fadeH),
-        Offset(0, tileY + tileH),
-        [
-          const ui.Color(0x00000000),
-          ui.Color.fromRGBO(0, 0, 0, (opacity * 0.85).clamp(0.0, 1.0)),
-        ],
-      );
-      canvas.drawRect(
-        Rect.fromLTWH(0, tileY + tileH - fadeH, w, fadeH),
-        Paint()..shader = seamGrad,
-      );
     }
   }
 }
