@@ -13,11 +13,18 @@ dependencies:
   flame_audio: ^2.1.5
   google_fonts: ^6.1.0
   shared_preferences: ^2.5.3
+  rename_app: ^1.6.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
 
 flutter:
   uses-material-design: true
@@ -33,7 +40,6 @@ flutter:
     - assets/audio/snowy/snowy_bgm.mp3
     - assets/audio/volcanic/volcanic_bgm.mp3
     - assets/images/character.png
-    - assets/images/character_jump_sprite_sheet.png
     - assets/images/character_chubby_64.png
     - assets/images/mossy/
     - assets/images/ancient_civilization/
