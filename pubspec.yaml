@@ -33,6 +33,8 @@ flutter:
     - assets/audio/snowy/snowy_bgm.mp3
     - assets/audio/volcanic/volcanic_bgm.mp3
     - assets/images/character.png
+    - assets/images/character_jump_sprite_sheet.png
+    - assets/images/character_chubby_64.png
     - assets/images/mossy/
     - assets/images/ancient_civilization/
     - assets/images/eroded/
