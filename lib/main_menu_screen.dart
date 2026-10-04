@@ -76,7 +76,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
         .playStatic(_biome, GameAudioManager.instance.masterVolume);
 
     final bg = await Flame.images.load(stage.bgAsset);
-    final char = await Flame.images.load('character.png');
+    final char = await Flame.images.load('character_chubby_64.png');
     if (mounted) {
       setState(() {
         _bgImage = bg;
