@@ -277,7 +277,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                       offset: Offset(0, _floatAnim.value),
                       child: _characterImage != null
                           ? _CharacterWidget(image: _characterImage!)
-                          : const SizedBox(width: 50, height: 100),
+                          : const SizedBox(width: 50, height: 50),
                     ),
                   ),
 
@@ -390,7 +390,7 @@ class _CharacterWidget extends StatelessWidget {
   const _CharacterWidget({required this.image});
   @override
   Widget build(BuildContext context) =>
-      CustomPaint(size: const Size(80, 150), painter: _CharacterPainter(image));
+      CustomPaint(size: const Size(150, 150), painter: _CharacterPainter(image));
 }
 
 class _CharacterPainter extends CustomPainter {
