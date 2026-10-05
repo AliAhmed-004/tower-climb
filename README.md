@@ -1,74 +1,124 @@
 # Tower Climb
 
-Tower Climb is a mobile-first vertical platformer built with Flutter and Flame. The player starts on a ground platform, bounces upward by landing on increasingly higher platforms, survives checkpoint floors, and tries to climb as far as possible before falling past the death boundary.
+Tower Climb is a mobile-first vertical platformer built with [Flutter](https://flutter.dev/) and [Flame](https://flame-engine.org/).
 
-## What is in the game
+Bounce from platform to platform, climb through six biomes, reach checkpoint floors, and set a new personal best before falling into the void.
 
-- Endless vertical climb loop with procedural platform generation
-- Touch controls split by screen half: left side moves left, right side moves right
-- Auto-scrolling camera and rising difficulty as floors increase
-- Checkpoint floors every 100 floors that freeze the camera and resume play after a brief settle
-- Stage progression across six visual themes: mossy, ancient civilization, eroded, desert, snowy, volcanic
-- Combo and floor tracking in the HUD
-- Retro menu screen with animated title and stage background art
+## Features
+
+- Endless vertical climbing with procedural platform generation
+- Simple touch controls designed for portrait play
+- Auto-scrolling camera with faster movement in later biomes
+- Six visual stages with biome-specific backgrounds, platforms, and music
+- Smooth visual and audio crossfades between stages
+- Checkpoints every 100 floors
+- Combo tracking and current-floor HUD
+- Pause menu with resume, settings, and main-menu actions
+- Persisted master-volume setting
+- Retro pixel-art presentation with animated menu elements
+- Glitch mode beyond the final stage
+
+## How to play
+
+| Action | Input |
+| --- | --- |
+| Move left | Tap or hold the left half of the screen |
+| Move right | Tap or hold the right half of the screen |
+| Start a run | Tap anywhere on the launch prompt |
+| Continue after a checkpoint | Tap the checkpoint prompt |
+| Pause | Tap the pause button in the HUD |
+
+The player bounces automatically when landing on a platform. Stay aligned, keep climbing, and avoid falling below the death boundary.
+
+## Stages
+
+Each stage covers 100 floors. Platforms become narrower and the camera accelerates as the climb continues.
+
+1. Mossy — floors 0–99
+2. Ancient Civilization — floors 100–199
+3. Eroded — floors 200–299
+4. Desert — floors 300–399
+5. Snowy — floors 400–499
+6. Volcanic — floors 500–599
+
+At floor 600, the game enters glitch mode. Background and platform art flicker between stages while the climb speed increases.
 
 ## Tech stack
 
-- Flutter
+- Flutter and Dart
 - Flame game engine
-- Google Fonts for retro pixel-styled UI
-- Custom sprite and tile assets under `assets/images/`
+- `flame_audio` for music and sound effects
+- `google_fonts` for the pixel-style interface
+- `shared_preferences` for persisted audio settings
 
 ## Project structure
 
-- `lib/main.dart` — app bootstrapping and orientation setup
-- `lib/main_menu_screen.dart` — animated start menu and title screen
-- `lib/game_screen.dart` — active game screen, overlays, HUD, checkpoint prompts, and game-over dialog
-- `lib/tower_game.dart` — game loop, spawn system, camera logic, checkpoint flow, input, and death triggers
-- `lib/player.dart` — player movement, gravity, bounce physics, wall clamping, collision handling
-- `lib/platform.dart` — platform rendering and stage tile visuals
-- `lib/background.dart` — parallax background rendering and stage blending
-- `lib/stage_manager.dart` — stage definitions, asset loading, blending, and glitch mode
-- `lib/kill_floor.dart` — invisible death boundary below the active camera
-- `test/widget_test.dart` — default Flutter smoke test
-
-## Controls
-
-- Tap the left half of the screen to move left
-- Tap the right half of the screen to move right
-- Tap anywhere to launch the run from the start prompt
-- When the camera settles on a checkpoint, tap again to resume from that checkpoint
+| Path | Purpose |
+| --- | --- |
+| `lib/main.dart` | App startup, portrait orientation, fullscreen mode |
+| `lib/main_menu_screen.dart` | Animated menu, stage preview, and play flow |
+| `lib/game_screen.dart` | Flame view, HUD, pause flow, checkpoints, and game-over dialog |
+| `lib/tower_game.dart` | Game loop, camera, spawning, input, scoring, and game state |
+| `lib/player.dart` | Movement, gravity, bounce physics, collisions, and wall limits |
+| `lib/platform.dart` | Platform rendering and stage transitions |
+| `lib/background.dart` | Parallax background rendering |
+| `lib/stage_manager.dart` | Stage definitions, asset loading, blending, and glitch mode |
+| `lib/audio_manager.dart` | Biome music, pooled sound effects, pause/resume, and volume |
+| `lib/settings_screen.dart` | Master-volume settings dialog |
+| `test/widget_test.dart` | Flutter widget smoke test |
 
 ## Run locally
+
+### Requirements
+
+- Flutter SDK with Dart 3
+- A connected Android or iOS device, emulator, or simulator
+
+### Commands
 
 ```bash
 flutter pub get
 flutter run
 ```
 
-For a quick test pass:
+Run the test suite:
 
 ```bash
 flutter test
 ```
 
-## Notes
+Check code quality:
 
-- The app is configured for portrait mode with immersive fullscreen behavior.
-- Asset loading is handled through Flame image cache using the stage-specific background and floor textures.
-- The game uses a fixed platform spacing and a stage blend window to transition between biome themes without abrupt visual jumps.
-- There is a "glitch mode" after the final stage threshold, which swaps backgrounds and floor art at intervals for an unstable final stretch.
+```bash
+flutter analyze
+```
 
-## Asset layout
+## Assets
 
-The project loads art from the following categories:
+Game assets live under `assets/`:
 
-- `assets/images/character.png`
-- `assets/images/mossy/`
-- `assets/images/ancient_civilization/`
-- `assets/images/eroded/`
-- `assets/images/desert/`
-- `assets/images/snowy/`
-- `assets/images/volcanic/`
+```text
+assets/
+├── audio/
+│   ├── <biome>/<biome>_bgm.mp3
+│   ├── button_click.wav
+│   ├── checkpoint.wav
+│   └── jump.wav
+├── images/
+│   ├── character.png
+│   ├── character_chubby_64.png
+│   └── <biome>/
+│       ├── <biome>_background.png
+│       └── <biome>_floor.png
+└── icon.png
+```
 
-This README reflects the current app behavior and structure, not the default Flutter starter template.
+To add a biome, define a `StageConfig` in `lib/stage_manager.dart`, add its background and platform images, add its music file to `pubspec.yaml`, and include the matching asset files.
+
+## Current platform target
+
+The game is configured for portrait orientation and immersive fullscreen play. Touch input is the primary control method.
+
+## License
+
+No open-source license has been selected yet. Add a license before distributing the project under open-source terms.
